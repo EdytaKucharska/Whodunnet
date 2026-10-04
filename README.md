@@ -2,7 +2,7 @@
 
 When the internet goes bad in the evening, find out **who done it**: your WiFi, your ISP, the ISP's links to video services, your router under load, or your devices. Whodunnet measures your connection continuously in the background and turns that into a verdict and an evidence report you can send to your ISP.
 
-**Status:** pre-alpha. Design docs only, no code yet.
+**Status:** pre-alpha. Design docs and project scaffold (M0); every CLI command is still a stub.
 
 ## Docs
 
@@ -27,7 +27,27 @@ Your network name, MAC addresses and public IP are never stored, and no measurem
 
 ## Development
 
-See [`plan.md` §1 Dev setup](./plan.md#1-dev-setup).
+Prerequisites: Python 3.9+ on any OS for the portable code and tests; macOS 13+ with Xcode Command Line Tools (`xcode-select --install`) to run the collector or capture fixtures.
+
+```bash
+git clone git@github.com:EdytaKucharska/Whodunnet.git && cd Whodunnet
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt     # pytest + ruff, dev only
+pytest
+ruff check . && ruff format --check .
+python3 -m whodunnet --help
+```
+
+Full setup, conventions and the task list: [`plan.md`](./plan.md#1-dev-setup).
+
+### Capturing real macOS output (task M0.5 — on the Mac)
+
+```bash
+bash tools/capture_fixtures.sh            # ~30 min; add --quick to skip the 20-min WiFi-probe test
+python3 tools/redact.py captures tests/fixtures/macos --term "<your ISP name>"
+```
+
+`captures/` holds private data and is git-ignored — never commit it. Check `tests/fixtures/macos/` for your public IP, WiFi name, router MAC and Mac name before committing it.
 
 ## License
 
