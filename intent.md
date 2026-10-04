@@ -21,9 +21,9 @@ Runs quietly in the background, measures the connection continuously, and turns 
 
 ### It answers
 
-1. **Is there actually a problem, and when?** Hour-of-day × day heatmaps; evening vs daytime comparison.
+1. **Is there actually a problem, and when?** Hour-of-day × day heatmaps; evening vs daytime comparison; problems that last all day are reported too, not only evening ones.
 2. **Whose fault is it?**
-   - **WiFi** — latency/loss to the home router itself spikes, or WiFi signal/noise/band degrades.
+   - **WiFi / home network** — the link to the home router degrades and everything beyond it suffers with it. Weak signal, noise, or a drop to the 2.4 GHz band explain *why*.
    - **ISP network** — router is clean, but latency/loss to the ISP's first hops rises at peak time.
    - **ISP peering / video services** — ISP network is clean, but the path to video CDNs (Instagram, YouTube, Netflix…) degrades.
    - **Home bufferbloat** — latency balloons only when the line is loaded.
@@ -38,14 +38,14 @@ Runs quietly in the background, measures the connection continuously, and turns 
 | ~2 s | Ping to ISP first hop + public anchors (e.g. 1.1.1.1, a UK site) | ISP & internet latency, jitter, loss |
 | 1 min | WiFi RSSI, noise, channel, band (2.4/5/6 GHz), link rate | Did WiFi cause this spike? |
 | 1 min | DNS resolution time | Slow app start-up |
-| ~20 min | Throughput + responsiveness under load (macOS `networkQuality`) | Speed and bufferbloat by hour |
+| 8× / day at fixed times (1 overnight reference, 3 daytime, 4 evening) | Throughput + responsiveness under load (macOS `networkQuality`) | Speed and bufferbloat by time of day — infrequent because each run moves ~1 GB |
 | ~20 min | Traceroute to major video CDNs | Where along the path the delay builds up |
 
-Every sample is tagged with the connection type (WiFi / wired), so an occasional wired test (USB-C Ethernet adapter) settles the WiFi question directly.
+Every sample is tagged with the connection type (WiFi / wired), so an occasional wired test (USB-C Ethernet adapter) settles the WiFi question directly — the analysis compares wired and WiFi periods when both exist.
 
 ### Events log
 
-Users record things that changed — "router replaced", "package upgraded", "ISP contacted", "ticket #123". Events appear on the timeline and in the report, so the evidence shows e.g. *"problem persisted after router replacement"*.
+Users record things that changed — "router replaced", "package upgraded", "ISP contacted", "ticket #123". Events appear on the timeline and in the report, and the report compares the problem before and after each change, so the evidence shows e.g. *"problem persisted after router replacement"*. A quick **"it's lagging now"** marker — from the Mac or from a phone on the same WiFi — records the moments the household actually noticed lag.
 
 ### Evidence report
 
@@ -56,7 +56,7 @@ An exportable report (HTML → PDF) for raising a complaint with the ISP: date r
 - **Verdict over charts.** Charts support the answer; they are not the answer.
 - **Honest about uncertainty.** If the data doesn't support a verdict yet, say "not enough evidence" and what's missing.
 - **Light touch.** Measurements must not cause the lag they're measuring — throughput tests are short and infrequent.
-- **Private by default.** All data stays local. Network names, IP addresses, and traceroutes are never committed, uploaded, or sent anywhere without explicit user action.
+- **Private by default.** All data stays local. Network names, IP addresses, and traceroutes are never committed, uploaded, or sent anywhere. The only outbound traffic is the measurement itself — probes to the router, ISP, reference hosts and video services, plus small lookups to YouTube/Netflix to find the household's video servers — which is disclosed at install and can be switched off.
 - **Simple first.** Ship the smallest thing that answers "whodunnit?" for one household, then generalise.
 
 ## Scope
@@ -64,16 +64,16 @@ An exportable report (HTML → PDF) for raising a complaint with the ISP: date r
 ### MVP (v0) — the origin case
 
 - macOS only, running on a laptop over WiFi (no always-on wired device available).
-- Python collector run by `launchd`, keeps the Mac awake during monitoring hours.
+- Python collector run by `launchd`, collecting **24/7 while the Mac is on its charger** (keeps it awake; lid must stay open). Time when the Mac is asleep is "no data", never "outage".
 - SQLite storage, local-only.
-- Local web dashboard: heatmap, evening vs daytime, verdict, events log.
+- Local web dashboard: heatmap, evening vs daytime, verdict, events log, and an "it's lagging now" button. The lag button (only that) is also usable from an iPhone on the same WiFi via an opt-in link — a web page, not an app.
 - Evidence report export.
 - Data format and verdict logic kept separate from the collector, so a future native app can reuse them.
 
 ### Product path (later)
 
 1. **v1 — native macOS menu-bar app.** Same core, polished onboarding, one-click ISP report.
-2. **v2 — iPhone companion.** Compare phone-on-WiFi vs Mac at the same moment; settle "is it the phone?".
+2. **v2 — iPhone companion app.** Measure from the phone itself and compare phone-on-WiFi vs Mac at the same moment.
 3. **v3 — plug-in probe.** A cheap always-on device for households without a Mac.
 
 UK-first: the report should reference Ofcom's broadband consumer guidance (e.g. the voluntary minimum-guaranteed-speed code, for ISPs that are signatories) where relevant.
