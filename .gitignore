@@ -1,0 +1,13 @@
+# Local environments and dev data
+.venv/
+.devdata/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
+# Never commit measurement data or unredacted captures (privacy)
+*.db
+*.sqlite*
+reports/
+captures/
+whodunnet-report-*.html
