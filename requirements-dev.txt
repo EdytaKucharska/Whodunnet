@@ -1,0 +1,4 @@
+# Development only. The app itself has no dependencies (Python standard library).
+# Pinned so local runs and CI apply the same lint rules.
+pytest==8.4.2
+ruff==0.16.10
