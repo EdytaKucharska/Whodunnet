@@ -534,7 +534,7 @@ All commands: `python3 -m whodunnet <command>`; all accept `--data-dir` (or `WHO
 | `lag` | Add a `lag` event now (`source = cli`). |
 | `report --from YYYY-MM-DD --to YYYY-MM-DD [-o FILE]` | Write the report (default in the data dir's `reports/`). Dates inclusive. |
 | `export [--from] [--to] -o DIR` | One CSV per table: `targets, target_ips, target_status, ping, minute_rollup, wifi, dns, nq, traceroute, local_load, events, heartbeat`. (`gateway_mac` and `meta` are not exported — privacy.) |
-| `purge --before YYYY-MM-DD` | Delete raw and rollup data before a date. |
+| `purge --before YYYY-MM-DD [--yes]` | Delete raw and rollup data before a date (asks to confirm unless `--yes`). |
 
 ## 10. Privacy & safety
 

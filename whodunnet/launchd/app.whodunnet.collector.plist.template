@@ -1,1 +1,32 @@
-<!-- LaunchAgent template, rendered by `install` (spec §9). Filled in M1.8. -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- LaunchAgent for the Whodunnet collector, rendered by `python3 -m whodunnet install` (spec §9). -->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>$label</string>
+	<key>ProgramArguments</key>
+	<array>
+$program_arguments
+	</array>
+	<key>WorkingDirectory</key>
+	<string>$app_dir</string>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PYTHONPATH</key>
+		<string>$app_dir</string>
+	</dict>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<key>ThrottleInterval</key>
+	<integer>30</integer>
+	<key>ProcessType</key>
+	<string>Standard</string>
+	<key>StandardOutPath</key>
+	<string>$out_log</string>
+	<key>StandardErrorPath</key>
+	<string>$err_log</string>
+</dict>
+</plist>

@@ -140,7 +140,7 @@ def validate(overrides: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
     return cfg, warnings
 
 
-def _read_overrides(path: Path) -> dict[str, Any]:
+def read_overrides(path: Path) -> dict[str, Any]:
     try:
         text = Path(path).read_text()
     except FileNotFoundError:
@@ -158,7 +158,7 @@ def _read_overrides(path: Path) -> dict[str, Any]:
 
 def load(path: Path) -> tuple[dict[str, Any], list[str]]:
     """Read config.json merged onto DEFAULTS. A missing file means all defaults."""
-    return validate(_read_overrides(path))
+    return validate(read_overrides(path))
 
 
 def new_token() -> str:
@@ -184,7 +184,7 @@ def save_overrides(path: Path, overrides: dict[str, Any]) -> None:
 
 def ensure_token(path: Path) -> str:
     """Return the LAN token, generating and saving one if config.json has none."""
-    overrides = _read_overrides(path)
+    overrides = read_overrides(path)
     if not overrides.get("lan_token"):
         overrides["lan_token"] = new_token()
         save_overrides(path, overrides)
