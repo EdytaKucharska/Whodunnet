@@ -179,7 +179,7 @@ Format: **ID — title** · *depends on* — what · ✅ acceptance · 🧪 test
 - `tests/scenarios.py` writes `targets`, `target_ips`, `target_status`, `minute_rollup`, `heartbeat`, `wifi`, `nq`, `local_load`, `traceroute` and `events` rows directly (seeded, deterministic, up to 10 days) for every scenario in the spec §11 table.
 - ✅ Each scenario is one function call, < 1 s to build.
 
-**M2.1 — Rollup** · *M1.2* — `core/rollup.py` per spec §5 rollup rules (closed minutes, re-roll last 10, nearest-rank, jitter on consecutive replies, majority link/vpn); wire into the collector hook. 🧪 hand-computed small streams incl. all-lost minute.
+**M2.1 — Rollup** · *M1.2* — `core/rollup.py` per spec §5 rollup rules (closed minutes, re-roll last 10, nearest-rank, jitter on consecutive replies, majority link/vpn); wire into the collector hook. 🧪 hand-computed small streams incl. all-lost minute. Note: the WiFi-probe sample drop (spec §4.3) is done here too, and each run also catches up minutes not rolled since the last run (≤ 24 h), so a long worker delay never leaves holes.
 
 **M2.2 — Coverage, exclusions & derived status** · *M2.1* — `core/coverage.py` per spec §6.1 (covered minute/window, gaps from heartbeat, exclusions: nq ±30 s, vpn, `link = other`, local load; derived gateway-blocked and target-unresponsive; discovery status at a minute). Optional wifi-probe sample drop lives in `rollup.py` (spec §4.3). 🧪 each exclusion; blocked and unresponsive derivation; window 50% boundary.
 

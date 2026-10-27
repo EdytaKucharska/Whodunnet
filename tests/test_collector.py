@@ -276,6 +276,7 @@ def test_tick_runs_every_probe_and_stores_rows(setup):
     assert count("traceroute") > 0  # first round at 120 s
     assert count("heartbeat") >= 12
     assert count("ping") > 0
+    assert count("minute_rollup") > 0  # the rollup hook ran on the worker
     checks = json.loads(store.get_meta(conn, "doctor_json"))
     names = {ch["check"] for ch in checks}
     assert {"xcode_tools", "collector", "gateway", "power", "firewall", "targets"} <= names

@@ -26,7 +26,7 @@ from typing import Any, Callable
 
 from whodunnet import doctor
 from whodunnet.collector.scheduler import Scheduler
-from whodunnet.core import store
+from whodunnet.core import rollup, store
 from whodunnet.paths import Paths
 from whodunnet.probes import dns, load, nq, power, trace, wifi
 from whodunnet.probes.discover import Discovery
@@ -126,7 +126,7 @@ class Collector:
         self.resolver: str | None = None
         self._targets_changed = threading.Event()
         self._route: tuple[str | None, str | None] | None = None
-        self.rollup_hook: Callable[[sqlite3.Connection, int], object] | None = None  # M2.1
+        self.rollup_hook: Callable[[sqlite3.Connection, int], object] | None = rollup.rollup_recent
         self.web_hook: Callable[[Collector], object] | None = None  # M3.1
 
     # ---- connections and context ---------------------------------------------------------------
