@@ -250,6 +250,11 @@ def insert_heartbeat(conn: sqlite3.Connection, ts: int) -> None:
         conn.execute("INSERT INTO heartbeat (ts) VALUES (?)", (ts,))
 
 
+def last_gateway_mac(conn: sqlite3.Connection) -> str | None:
+    row = conn.execute("SELECT mac_hash FROM gateway_mac ORDER BY ts DESC LIMIT 1").fetchone()
+    return row[0] if row else None
+
+
 def record_gateway_mac(conn: sqlite3.Connection, mac_hash: str, ts: int) -> bool:
     """Store the (salted, hashed) gateway MAC if it changed. Returns True if it changed."""
     last = conn.execute("SELECT mac_hash FROM gateway_mac ORDER BY ts DESC LIMIT 1").fetchone()

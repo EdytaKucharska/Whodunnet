@@ -140,8 +140,9 @@ Format: **ID — title** · *depends on* — what · ✅ acceptance · 🧪 test
 - `probes/runner.py`: `run_command(argv, timeout)`; tests inject a fake runner.
 - `probes/link.py` (spec §4.7 incl. VPN via `route -n get 1.1.1.1`), `probes/power.py` (`on_battery`, caffeinate start/stop), `probes/load.py` (spec §4.9 → `local_load`).
 - `probes/discover.py` (spec §4.1): gateway; ISP edge (≤ 2 TTLs, double-NAT rule → `meta.double_nat`, adopt-first then 2-consecutive rule); anchors (v4/v6) and CDN resolution via `dig @resolver` with sticky IPs and the `getaddrinfo` fallback when `dig` to a LAN/link-local resolver fails; IPv6 targets; router-change detection (gateway IP or salted MAC hash); `target_status` history; `system` events.
-- `probes/youtube.py` (report_mapping → `rr1---sn-<node>.googlevideo.com`, else `approximate`), `probes/netflix.py` (fast.com flow, `urlCount=5`, prefer ipv4-/ipv6- hosts, prefix swap, 10 s timeout, never log body). Both use `urllib.request` and honour `cdn_*` and `discovery_lookups`.
-- ✅ On the Mac, a foreground run populates `targets` and `target_status` correctly (checked with `sqlite3`); `doctor` shows them once M1.8 lands.
+- `probes/youtube.py` (v0 per spec §4.1: report_mapping POP name recorded as the reason, target = redirector with status `approximate`), `probes/netflix.py` (fast.com flow, `urlCount=5`, prefer ipv4-/ipv6- hosts, prefix swap, 10 s timeout, never log body). Both use `urllib.request` and honour `cdn_*` and `discovery_lookups`.
+- Discovery keeps its run-to-run state (ISP-edge candidate, sticky-IP absence counts) in memory; after a restart the current edge is simply adopted again.
+- ✅ Unit tests on the real captures; the on-Mac check (a foreground run populates `targets` / `target_status`) happens once `run --foreground` exists (M1.7/M1.8); `doctor` shows them once M1.8 lands.
 - 🧪 discovery with stubbed runner (double NAT, private ISP-internal hop, CGNAT edge, edge > 2 TTLs, flapping edge, sticky IP rotation, router MAC change); youtube/netflix with stubbed HTTP (success, token missing, API error, single-family answer).
 
 **M1.5 — Ping streams** · *M1.2, M1.4*
