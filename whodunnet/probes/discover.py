@@ -75,7 +75,7 @@ def _is_ip(value: str, af: int | None = None) -> bool:
     return af is None or ip.version == af
 
 
-def _is_lan_or_link_local(ip: str) -> bool:
+def is_lan_or_link_local(ip: str) -> bool:
     try:
         addr = ipaddress.ip_address(ip.split("%")[0])
     except ValueError:
@@ -156,7 +156,7 @@ class Discovery:
             parsed = dig.parse_short(res.output)
             if res.ok and parsed.ok:
                 return parsed.ips, "ok"
-            if not _is_lan_or_link_local(resolver):
+            if not is_lan_or_link_local(resolver):
                 report.warnings.append(f"DNS lookup for {host} failed")
                 return [], "ok"
         fallback = self.resolve(host, af)

@@ -155,6 +155,7 @@ Format: **ID — title** · *depends on* — what · ✅ acceptance · 🧪 test
 - `wifi.py` (5 min, 15 s timeout, records `started_ts`, picks the default-route WiFi interface), `dns.py` (60 s; `cached` + `nxdomain`; `error = "lan_unreachable"` rule), `load.py` (60 s), `trace.py` (20 min, sequential, 90 s budget, `-I`), `nq.py` (slots, `-c -s -M 20`, skip rules incl. unknown battery state, records skipped runs).
 - ✅ In a 1 h foreground run each table receives rows at the expected cadence; `run --nq-now` produces an nq row.
 - 🧪 nq slot logic with a fake clock: fires once per slot within 5 min; missed slot not retried; skip on battery; skip after recent lag event.
+- Note: the probes are plain functions/classes with an injected runner and clock; the collector (M1.7) calls them on their intervals, and `run --nq-now` (M1.8) calls `NqRunner.run_now`. A slot is also not re-fired after a collector restart (an `nq` row already exists in its window).
 
 **M1.7 — Collector main, scheduler, sleep** · *M1.5, M1.6*
 - `collector/scheduler.py`: 1 s tick scheduler with injectable clock.
