@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import sqlite3
+
+from whodunnet.core import store
 from whodunnet.core.models import LocalLoadRow
 from whodunnet.probes.parsers import netstat
 from whodunnet.probes.runner import Runner, run_command
@@ -37,3 +40,17 @@ class LoadMeter:
             rx_mbps=(counters.rx_bytes - rx0) * 8 / seconds / 1e6,
             tx_mbps=(counters.tx_bytes - tx0) * 8 / seconds / 1e6,
         )
+
+
+def record_load(
+    conn: sqlite3.Connection,
+    meter: LoadMeter,
+    interface: str | None,
+    now_ms: int,
+    runner: Runner = run_command,
+) -> LocalLoadRow | None:
+    """Every 60 s: sample and upsert into local_load (nothing on the first sample)."""
+    row = meter.sample(interface, now_ms, runner)
+    if row is not None:
+        store.upsert_local_load(conn, [row])
+    return row
