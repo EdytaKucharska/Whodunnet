@@ -1,0 +1,41 @@
+Whodunnet fixture capture
+date: 2026-10-27T20:12:55Z
+ProductName:		macOS
+ProductVersion:		26.6.2
+BuildVersion:		25G83
+
+sw_vers/sw_vers.txt                      rc=0     0.1s  sw_vers
+route/default.txt                        rc=0     0.1s  route -n get default
+route/get_1.1.1.1.txt                    rc=0     0.0s  route -n get 1.1.1.1
+route/get_inet6.txt                      rc=0     0.1s  route -n get -inet6 2606:4700:4700::1111
+networksetup/listallhardwareports.txt    rc=0     0.1s  networksetup -listallhardwareports
+ifconfig/ifconfig.txt                    rc=0     0.1s  ifconfig
+ifconfig/awdl0.txt                       rc=0     0.1s  ifconfig awdl0
+netstat/ibn.txt                          rc=0     0.1s  netstat -ibn
+scutil/dns.txt                           rc=0     0.1s  scutil --dns
+scutil/localhostname.txt                 rc=0     0.1s  scutil --get LocalHostName
+firewall/globalstate.txt                 rc=0     0.1s  /usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate
+pmset/batt.txt                           rc=0     0.1s  pmset -g batt
+gateway: 192.168.1.1  interface: en0
+arp/gateway.txt                          rc=0     0.1s  arp -n 192.168.1.1
+resolver: 192.168.1.1
+global IPv6: 0
+system_profiler/wifi.json                rc=0    11.3s  system_profiler SPAirPortDataType -json
+dig/cached.txt                           rc=0     0.1s  dig +tries=1 +time=2 @192.168.1.1 www.google.com
+dig/nxdomain.txt                         rc=0     0.1s  dig +tries=1 +time=2 @192.168.1.1 m43v2pfcjrka.example.com
+dig/short_a_instagram.txt                rc=0     0.1s  dig +short A @192.168.1.1 scontent.cdninstagram.com
+dig/short_aaaa_instagram.txt             rc=0     0.1s  dig +short AAAA @192.168.1.1 scontent.cdninstagram.com
+dig/short_a_bbc.txt                      rc=0     0.1s  dig +short A @192.168.1.1 www.bbc.co.uk
+dig/short_aaaa_bbc.txt                   rc=0     0.1s  dig +short AAAA @192.168.1.1 www.bbc.co.uk
+ping/gateway.txt                         rc=0     8.1s  ping -n -c 5 -i 2 192.168.1.1
+ping/timeouts.txt                        rc=2    20.1s  ping -n -c 5 -i 2 192.0.2.1
+ping/streaming_check.txt (see timestamps)
+ping/sendto_error.txt                    rc=0    28.2s  ping -n -c 15 -i 2 1.1.1.1
+traceroute/icmp_1.1.1.1_m20.txt          rc=0     6.3s  traceroute -I -n -q 3 -w 1 -m 20 1.1.1.1
+traceroute/icmp_1.1.1.1_m8.txt           rc=0     3.3s  traceroute -I -n -q 3 -w 1 -m 8 1.1.1.1
+networkquality/help.txt                  rc=0     0.1s  networkQuality -h
+networkquality/run.json                  rc=0    20.3s  networkQuality -c -s -M 20
+youtube/report_mapping.txt               rc=0     0.2s  curl -s --max-time 10 https://redirector.googlevideo.com/report_mapping?di=no
+netflix/fast_shape.json
+wifi_probe_check/ (compare RTT spikes with probe_times.txt)
+Done. Raw captures are in captures/ (git-ignored; contains private data).

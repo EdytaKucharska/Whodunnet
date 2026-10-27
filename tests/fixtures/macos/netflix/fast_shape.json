@@ -1,0 +1,32 @@
+{
+  "steps": [
+    {
+      "app_js_found": true
+    },
+    {
+      "token_found": true,
+      "token_length": 32
+    }
+  ],
+  "top_level_keys": [
+    "client",
+    "targets"
+  ],
+  "client_keys": [
+    "asn",
+    "ip",
+    "location"
+  ],
+  "target_hosts": [
+    "ipv4-c001-pop001-isp-example.1.oca.nflxvideo.net",
+    "ipv4-c001-pop001-isp-example.1.oca.nflxvideo.net",
+    "ipv4-c001-pop001-isp-example.1.oca.nflxvideo.net",
+    "ipv4-c001-pop001-isp-example.1.oca.nflxvideo.net",
+    "ipv4-c001-pop001-isp-example.1.oca.nflxvideo.net"
+  ],
+  "target_keys": [
+    "location",
+    "name",
+    "url"
+  ]
+}

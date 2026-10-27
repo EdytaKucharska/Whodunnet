@@ -1,0 +1,28 @@
+
+; <<>> DiG 9.10.6 <<>> +tries=1 +time=2 @192.168.1.1 www.google.com
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 31945
+;; flags: qr rd ra; QUERY: 1, ANSWER: 8, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 4096
+;; QUESTION SECTION:
+;www.google.com.			IN	A
+
+;; ANSWER SECTION:
+www.google.com.		30	IN	A	203.0.113.1
+www.google.com.		30	IN	A	203.0.113.2
+www.google.com.		30	IN	A	203.0.113.3
+www.google.com.		30	IN	A	203.0.113.4
+www.google.com.		30	IN	A	203.0.113.5
+www.google.com.		30	IN	A	203.0.113.6
+www.google.com.		30	IN	A	203.0.113.7
+www.google.com.		30	IN	A	203.0.113.8
+
+;; Query time: 3 msec
+;; SERVER: 192.168.1.1#53(192.168.1.1)
+;; WHEN: Tue Oct 27 20:13:09 GMT 2026
+;; MSG SIZE  rcvd: 171
+

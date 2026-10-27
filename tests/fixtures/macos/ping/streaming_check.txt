@@ -1,0 +1,14 @@
+  0.168s  PING 1.1.1.1 (1.1.1.1): 56 data bytes
+  0.168s  64 bytes from 1.1.1.1: icmp_seq=0 ttl=58 time=13.699 ms
+  2.173s  64 bytes from 1.1.1.1: icmp_seq=1 ttl=58 time=13.869 ms
+  4.184s  64 bytes from 1.1.1.1: icmp_seq=2 ttl=58 time=15.550 ms
+  6.185s  64 bytes from 1.1.1.1: icmp_seq=3 ttl=58 time=12.812 ms
+  8.196s  64 bytes from 1.1.1.1: icmp_seq=4 ttl=58 time=19.872 ms
+ 10.235s  64 bytes from 1.1.1.1: icmp_seq=5 ttl=58 time=13.219 ms
+ 12.199s  64 bytes from 1.1.1.1: icmp_seq=6 ttl=58 time=14.776 ms
+ 14.202s  64 bytes from 1.1.1.1: icmp_seq=7 ttl=58 time=13.684 ms
+ 16.202s  64 bytes from 1.1.1.1: icmp_seq=8 ttl=58 time=13.531 ms
+ 18.208s  64 bytes from 1.1.1.1: icmp_seq=9 ttl=58 time=13.356 ms
+ 20.256s  64 bytes from 1.1.1.1: icmp_seq=10 ttl=58 time=59.301 ms
+
+# If the timestamps step by ~2 s, piping works. Bursts mean ping buffers -> use a pty.
