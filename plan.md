@@ -149,6 +149,7 @@ Format: **ID — title** · *depends on* — what · ✅ acceptance · 🧪 test
 - `probes/ping.py` per spec §4.2: one process per active target; reader thread; 10 s hold with last-outcome-wins; `SendError` attached to the next loss; seq-gap loss unless a sleep/heartbeat gap overlaps; modulo 65536; `ts` = send time; restart on exit / IP change / wake / every 24 h; batch insert every 5 s; pty mode if M0.5 showed buffering; startup UDP datagram to the gateway (Local Network prompt).
 - ✅ 1 h foreground run: ~1,800 rows per target; losses recorded when WiFi is toggled off for 30 s; no orphan `ping` processes after Ctrl-C or `kill`.
 - 🧪 the ping-stream cases in spec §11.
+- Note: `PingStreams` is wired into the collector in M1.7 (`write()` every 5 s, `still_answering` → `Discovery`, `nudge_local_network` at start, `restart_all` on wake); the 1 h foreground acceptance run happens once `run --foreground` exists (M1.7/M1.8).
 
 **M1.6 — Periodic probes** · *M1.2, M1.4*
 - `wifi.py` (5 min, 15 s timeout, records `started_ts`, picks the default-route WiFi interface), `dns.py` (60 s; `cached` + `nxdomain`; `error = "lan_unreachable"` rule), `load.py` (60 s), `trace.py` (20 min, sequential, 90 s budget, `-I`), `nq.py` (slots, `-c -s -M 20`, skip rules incl. unknown battery state, records skipped runs).
