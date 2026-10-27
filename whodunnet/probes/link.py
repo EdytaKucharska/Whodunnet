@@ -54,6 +54,10 @@ class LinkCache:
         self._state: LinkState | None = None
         self._at = 0.0
 
+    def peek(self) -> LinkState | None:
+        """The last state without refreshing: cheap and safe to call from reader threads."""
+        return self._state
+
     def get(self, force: bool = False) -> LinkState:
         now = self._clock()
         if force or self._state is None or now - self._at >= self._ttl:
