@@ -169,6 +169,7 @@ Format: **ID — title** · *depends on* — what · ✅ acceptance · 🧪 test
 - `install` exactly per spec §9 (copy package to app dir, `meta.install_salt`, bootout-then-bootstrap, plist from `launchd/…template` with `/usr/bin/python3`, `--data-dir` passed through, `ThrottleInterval 30`, `ProcessType Standard`, `launchd.out.log`/`launchd.err.log`).
 - ✅ On the Mac (macOS 15 if available): fresh `install` → Local Network prompt appears (record whether the startup datagram triggered it and how Settings names it — update spec §4.2) → after approval the gateway receives pings **from the agent**; collector survives logout/login and `kill -9` (relaunched); `uninstall` leaves nothing running; `doctor` shows every check from spec §9 with a fix.
 - 🧪 plist rendering; argument parsing; `doctor` with stubbed checks; `event --at` local-time parsing; `export` writes one CSV per table.
+- Note: `install`/`uninstall` live in `whodunnet/agent.py` (launchctl via the injectable runner), local-time parsing in `whodunnet/timeutil.py` (`time.mktime`, DST-correct). `status` prints collector uptime coverage until M2.2/M2.5 add real coverage and the verdict. `purge` asks to confirm (`--yes` skips).
 
 **M1 exit:** 24 h `install`ed run on the founder's Mac — all tables filling, gap events on sleep, `status` shows coverage, `doctor` clean (or every warning explained).
 
