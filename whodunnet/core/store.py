@@ -232,6 +232,16 @@ _ROW_TABLES = {
 }
 
 
+def _values(rows: Iterable) -> list[tuple]:
+    """Field values of flat dataclass rows, in field order (much faster than dataclasses.astuple,
+    which deep-copies every value)."""
+    rows = list(rows)
+    if not rows:
+        return []
+    names = [f.name for f in dataclasses.fields(type(rows[0]))]
+    return [tuple(getattr(r, n) for n in names) for r in rows]
+
+
 def insert_rows(conn: sqlite3.Connection, rows: Sequence) -> int:
     """Batch-insert rows of one *Row type. Returns the number inserted."""
     if not rows:
@@ -241,7 +251,7 @@ def insert_rows(conn: sqlite3.Connection, rows: Sequence) -> int:
     names = [f.name for f in dataclasses.fields(cls)]
     sql = f"INSERT INTO {table} ({', '.join(names)}) VALUES ({', '.join('?' * len(names))})"
     with conn:
-        conn.executemany(sql, [dataclasses.astuple(r) for r in rows])
+        conn.executemany(sql, _values(rows))
     return len(rows)
 
 
@@ -269,7 +279,7 @@ def upsert_local_load(conn: sqlite3.Connection, rows: Iterable[LocalLoadRow]) ->
     with conn:
         conn.executemany(
             "INSERT OR REPLACE INTO local_load (minute, rx_mbps, tx_mbps) VALUES (?, ?, ?)",
-            [dataclasses.astuple(r) for r in rows],
+            _values(rows),
         )
 
 
@@ -280,7 +290,7 @@ def upsert_rollups(conn: sqlite3.Connection, rows: Iterable[RollupRow]) -> None:
         f"VALUES ({', '.join('?' * len(names))})"
     )
     with conn:
-        conn.executemany(sql, [dataclasses.astuple(r) for r in rows])
+        conn.executemany(sql, _values(rows))
 
 
 def read_raw(

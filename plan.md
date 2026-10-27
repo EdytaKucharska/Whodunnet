@@ -178,6 +178,7 @@ Format: **ID — title** · *depends on* — what · ✅ acceptance · 🧪 test
 **M2.0 — Scenario generator** · *M1.2*
 - `tests/scenarios.py` writes `targets`, `target_ips`, `target_status`, `minute_rollup`, `heartbeat`, `wifi`, `nq`, `local_load`, `traceroute` and `events` rows directly (seeded, deterministic, up to 10 days) for every scenario in the spec §11 table.
 - ✅ Each scenario is one function call, < 1 s to build.
+- Note: scenarios write `minute_rollup` as tuples and tests use in-memory databases; the 14-target IPv6 scenario uses 7 days to stay under 1 s. `store` row inserts no longer use `dataclasses.astuple` (deep copies; ~7× slower). Expected results live on each scenario (`s.expected`) and are asserted once the analysis lands (M2.5).
 
 **M2.1 — Rollup** · *M1.2* — `core/rollup.py` per spec §5 rollup rules (closed minutes, re-roll last 10, nearest-rank, jitter on consecutive replies, majority link/vpn); wire into the collector hook. 🧪 hand-computed small streams incl. all-lost minute. Note: the WiFi-probe sample drop (spec §4.3) is done here too, and each run also catches up minutes not rolled since the last run (≤ 24 h), so a long worker delay never leaves holes.
 
