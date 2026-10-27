@@ -150,7 +150,7 @@ Format: **ID — title** · *depends on* — what · ✅ acceptance · 🧪 test
 - 🧪 the ping-stream cases in spec §11.
 
 **M1.6 — Periodic probes** · *M1.2, M1.4*
-- `wifi.py` (60 s, 15 s timeout, records `started_ts`, picks the default-route WiFi interface), `dns.py` (60 s; `cached` + `nxdomain`; `error = "lan_unreachable"` rule), `load.py` (60 s), `trace.py` (20 min, sequential, 90 s budget, `-I`), `nq.py` (slots, `-c -s -M 20`, skip rules incl. unknown battery state, records skipped runs).
+- `wifi.py` (5 min, 15 s timeout, records `started_ts`, picks the default-route WiFi interface), `dns.py` (60 s; `cached` + `nxdomain`; `error = "lan_unreachable"` rule), `load.py` (60 s), `trace.py` (20 min, sequential, 90 s budget, `-I`), `nq.py` (slots, `-c -s -M 20`, skip rules incl. unknown battery state, records skipped runs).
 - ✅ In a 1 h foreground run each table receives rows at the expected cadence; `run --nq-now` produces an nq row.
 - 🧪 nq slot logic with a fake clock: fires once per slot within 5 min; missed slot not retried; skip on battery; skip after recent lag event.
 
@@ -255,13 +255,34 @@ M0.1 ─┬─ M0.2
 | YouTube/Netflix discovery endpoints change | Degrade to `approximate`/`unavailable`; other targets unaffected. |
 | Thresholds wrong for this connection | All in `core/thresholds.py`; Calibrate step. |
 | Public repo leaks household data | `.gitignore`, redactor, founder grep check, privacy line in definition of done. |
-| Data use (~8 GB/day) on a capped plan | `doctor` shows the estimate; `nq_schedule` is configurable. |
+| Data use (~4.6 GB/day measured) on a capped plan | `doctor` shows the estimate; `nq_schedule` is configurable. |
 
 ## 8. Verification results (filled in by M0.5.3)
 
+Captured 2026-10-27 on the founder's Mac: **macOS 26.6.2**, WiFi (5 GHz, 80 MHz, 802.11ax, −55 dBm), UK full fibre, **no IPv6**, router is also the DNS resolver. All fixtures in `tests/fixtures/macos/`, redacted with `tools/redact.py` and independently re-scanned before commit.
+
 | Spec assumption | Result | Fixture |
 |---|---|---|
-| _(one row per "verify M0.5" item in the spec)_ | | |
+| §4.2 ping lines arrive promptly through a pipe (else use a pty) | ✅ Confirmed: one line every ~2 s through a pipe → no pty needed. | `ping/streaming_check.txt` |
+| §4.2 timeout line format | ✅ `Request timeout for icmp_seq N`. With `-c`, the last timeout isn't printed before exit (irrelevant for continuous pings). | `ping/timeouts.txt` |
+| §4.2 `ping: sendto:` error lines | ⚠️ Not captured — no errors appeared during the WiFi-off step. Keep a `provisional_` fixture; recapture later if convenient. | `ping/wifi_off_attempt_no_errors.txt` (clean run) |
+| §4.2 `ping6` timeout lines / §4.1 Netflix prefix swap | ➖ Not testable: no IPv6 on this connection (`route -n get -inet6` → "not in table"). | `route/get_inet6.txt` |
+| §4.1 ISP edge / double NAT | ✅ Hop 1 router, **hop 2 public** at ~5 ms = ISP edge; no CGNAT, no double NAT; hop 3 silent (`* * *`), destination at hop 6. Rule as specified works. | `traceroute/*.txt` |
+| §4.3 `system_profiler` shape | ✅ As specified (signal/noise string, channel string with band + width). `spairport_network_rate` is a number; no BSSID field; runtime **11.3 s**. | `system_profiler/wifi.json` |
+| §4.3 WiFi probe disturbs latency | ❌→ changed: router pings > 50 ms 14.7% during the probe vs 4.3% outside (p95 98 vs 48 ms). Probe moved to every 5 min, pings around it dropped. | `wifi_probe_check/` |
+| §4.4 `networkQuality -M` and JSON keys | ✅ `-M 20` works (runtime 20.3 s). ⚠️ With `-s` there is no combined `responsiveness`; keys are `dl_responsiveness`/`ul_responsiveness`, throughput in bits/s, `base_rtt` in ms. Spec updated. | `networkquality/*.txt|json` |
+| §4.4 data use | Changed: 0.57 GB per run (447 down / 143 up Mbps over WiFi) → ~4.6 GB/day. | `networkquality/run.json` |
+| §4.1 YouTube `report_mapping` | ⚠️ Format is `<client-ip> => <pop> (<subnet>)`, e.g. `iad66s07` — a POP name, not an `sn-` node. v0 uses the approximate redirector target. | `youtube/report_mapping.txt` |
+| §4.1 fast.com flow | ✅ Token found; answer has `client{asn,ip,location}` and 5 IPv4 `targets[{location,name,url}]`. | `netflix/fast_shape.json` |
+| §4.5 resolver rule | ✅ Resolver #1 has a `search domain[0]` line but no `domain :` line → correctly chosen (the router). | `scutil/dns.txt` |
+| §4.5 `nxdomain` probe | Note: the router answered **NOERROR + SOA** (not NXDOMAIN) for the random name — still `ok` under the spec rule. | `dig/nxdomain.txt` |
+| §4.1 `dig +short` | ✅ CNAME lines appear before the IPs (BBC) → skip non-IP lines as specified. | `dig/short_*.txt` |
+| §4.7 VPN check | ✅ `utun0`–`utun5` exist with no VPN; default route is `en0` → `vpn = 0`. | `ifconfig/ifconfig.txt`, `route/*.txt` |
+| §4.7 port names | Changed: dock and adapters appear as "Ethernet Adapter (enN)" / "USB3.0 5K Graphic Docking" (wired); "Thunderbolt 1/2/3" are bridge members → `other`. | `networksetup/listallhardwareports.txt` |
+| §9 doctor: AWDL, firewall, battery | ✅ `awdl0` active; firewall disabled; `pmset` says "Now drawing from 'AC Power'". | `ifconfig/awdl0.txt`, `firewall/`, `pmset/` |
+| §4.2 Local Network prompt for the agent | ➖ Can only be checked after `install` (M1.8, macOS 15+ incl. 26). | — |
+
+**Calibration note (for the Calibrate step):** even without the probe, ~4% of router pings exceed 50 ms (macOS WiFi power-save/AWDL). With ~30 pings a minute, the gateway's p95 will often clear "baseline + 40 ms". That's why §6.4 requires downstream confirmation for `wifi`; expect many `router_icmp_slow` tags and revisit the gateway thresholds after week 1.
 
 ## 9. Doc review log
 

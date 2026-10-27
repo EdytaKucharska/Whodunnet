@@ -3,7 +3,7 @@
 > Implements [`intent.md`](./intent.md). Precedence on conflict: **intent → spec → plan**. If this spec contradicts the intent, fix the spec.
 > The build plan is in [`plan.md`](./plan.md). Terms are defined in the [Glossary](#16-glossary).
 
-**Status:** reviewed (3 review rounds — see plan §9). Values marked _(initial)_ are starting points, calibrated after the first real week (plan "Calibrate"). Assumptions about macOS behaviour marked _(verify M0.5)_ must be confirmed against real captures before the code depending on them is "done"; each has a stated fallback.
+**Status:** reviewed (3 review rounds — see plan §9). Values marked _(initial)_ are starting points, calibrated after the first real week (plan "Calibrate"). M0.5 verification is done (results in plan §8); assumptions about macOS behaviour marked _(verify M0.5)_ must be confirmed against real captures before the code depending on them is "done"; each has a stated fallback.
 
 ---
 
@@ -52,7 +52,7 @@ Defaults live in `whodunnet/config.py` (`DEFAULTS`). Missing file → defaults. 
 | `discovery_lookups` | `true` | Allow the YouTube/Netflix HTTP lookups (§4.1). `false` → YouTube uses its approximate host, Netflix is `unavailable`. |
 | `ipv6` | `"auto"` | `auto` = add IPv6 targets if the Mac has a global IPv6 address; `off`. |
 | `ping_interval_s` | `2` | Ping cadence. |
-| `wifi_interval_s` / `dns_interval_s` | `60` / `60` | |
+| `wifi_interval_s` / `dns_interval_s` | `300` / `60` | WiFi readout is slow (~11 s) and disturbs latency, so it runs every 5 min (plan §8). |
 | `trace_interval_s` | `1200` | Traceroute cadence. |
 | `discover_interval_s` | `1800` | Discovery cadence. |
 | `nq_schedule` | `["04:00","10:00","12:00","14:00","19:30","20:30","21:30","22:30"]` | Local times for `networkQuality`: 1 overnight reference, 3 daytime, 4 evening. |
@@ -68,7 +68,7 @@ Thresholds are **not** config — they live in `whodunnet/core/thresholds.py` (�
 
 ```
   collector process (launchd agent, always running)
-  ├─ probes: ping streams (continuous) · wifi (60 s) · dns (60 s) · local load (60 s)
+  ├─ probes: ping streams (continuous) · wifi (5 min) · dns (60 s) · local load (60 s)
   │          · traceroute (20 min) · networkQuality (8 slots/day) · discovery (30 min + on wake/route change)
   ├─ heartbeat (10 s) · rollup (every minute) · prune (daily)
   └─ web server (127.0.0.1, or 0.0.0.0 if lan_access)  ──►  dashboard · JSON API · phone /lag page
@@ -139,12 +139,12 @@ A **target** is a logical thing we ping, identified by `(kind, name, af)`. Its I
 
 **ISP edge.** From `traceroute -I -n -q 3 -w 1 -m 8 1.1.1.1`:
 - The edge is the **first responding hop after the gateway**, if it is within **2 TTLs** of the gateway and is not the destination. Otherwise `isp_edge` is unknown (not pinged).
-- A private (RFC1918) hop after the gateway whose RTT is within **1 ms** of the gateway's is a second home router: skip it and set `meta.double_nat = 1` (`doctor` says "possible double NAT"). Otherwise a private hop is ISP-internal and can be the edge. _(verify M0.5)_
+- A private (RFC1918) hop after the gateway whose RTT is within **1 ms** of the gateway's is a second home router: skip it and set `meta.double_nat = 1` (`doctor` says "possible double NAT"). Otherwise a private hop is ISP-internal and can be the edge. (Not exercised by the origin capture: no double NAT, hop 2 is public — plan §8.)
 - First discovery with no known edge → adopt immediately. Afterwards a different edge IP is adopted only after it is seen in **2 consecutive** discoveries.
 
-**YouTube (`youtube.py`).** `GET https://redirector.googlevideo.com/report_mapping?di=no` returns the household's mapped Google cache (a POP/node name). Convert to the `rr1---sn-<node>.googlevideo.com` host and resolve it _(verify M0.5: exact response format and conversion)_. Fallback: `redirector.googlevideo.com` with status `approximate`.
+**YouTube (`youtube.py`).** `GET https://redirector.googlevideo.com/report_mapping?di=no` returns one line, `<client-ip> => <pop> (<client-subnet>)`, e.g. `… => iad66s07 (…/23)` (verified, plan §8). `<pop>` is a Google front-end/cache name, **not** an `sn-` node code; how to turn it into a pingable video-cache host is unverified. v0 therefore records the POP name in `target_status.reason` and uses `redirector.googlevideo.com` with status `approximate`. Never store the client IP or subnet.
 
-**Netflix (`netflix.py`).** Fetch `https://fast.com/`, find the referenced `app-*.js`, extract `token:"…"`, call `https://api.fast.com/netflix/speedtest/v2?https=true&token=<t>&urlCount=5`, and take the hostnames of `targets[].url`. Prefer an `ipv4-…` host for af 4 and an `ipv6-…` host for af 6; if only one family is returned, derive the other by swapping the prefix (same server) _(verify M0.5)_. Total timeout 10 s. **Never store or log the response body** (it contains the household's public IP). Failure → status `unavailable` with reason. Never substitute `www.netflix.com` (AWS, not where video comes from).
+**Netflix (`netflix.py`).** Fetch `https://fast.com/`, find the referenced `app-*.js`, extract `token:"…"`, call `https://api.fast.com/netflix/speedtest/v2?https=true&token=<t>&urlCount=5`, and take the hostnames of `targets[].url`. Prefer an `ipv4-…` host for af 4 and an `ipv6-…` host for af 6; if only one family is returned, derive the other by swapping the prefix (same server) — unverified (origin connection has no IPv6). Total timeout 10 s. **Never store or log the response body** (it contains the household's public IP). Failure → status `unavailable` with reason. Never substitute `www.netflix.com` (AWS, not where video comes from).
 
 YouTube and Netflix lookups only run when `discovery_lookups` is true.
 
@@ -159,38 +159,40 @@ YouTube and Netflix lookups only run when `discovery_lookups` is true.
 ### 4.2 Ping (`ping.py`) — continuous
 
 - One long-lived subprocess per active target: `ping -n -i 2 <ip>` / `ping6 -n -i 2 <ip>`. No root needed for 2 s intervals.
-- Read stdout line by line. If lines arrive in bursts when piped (buffering), run the process under a pseudo-terminal (`pty`). _(verify M0.5)_
+- Read stdout line by line. Verified on macOS 26: lines arrive promptly through a pipe (every ~2 s), so no pseudo-terminal is needed (plan §8).
 - `parsers/ping.py` parses one line → `Reply(seq, rtt_ms)` · `Timeout(seq)` · `SendError(reason)` (`ping: sendto: No route to host` / `Host is down` / `Network is down`) · `None` (header/summary) · `Unparsed(line)` (logged, ignored).
 - **Outcomes per seq.** The stream keeps outcomes in memory for **10 s** after the seq was sent, then flushes them (batch insert every 5 s). Within that window the **last outcome wins** — a late reply replaces its timeout (stored as received, RTT > 2000 ms). Replies arriving after flush are logged and dropped.
 - **`SendError` creates no row**; its reason is attached as `error` to the next timeout/loss row of that stream.
-- **Sequence gaps** (seq jumps with no outcome lines) are loss rows, one per missing seq, with `ts` interpolated between the surrounding lines — **unless** a sleep/heartbeat gap (§4.8) overlaps that period, in which case they are dropped (no data). Seq arithmetic is modulo 65536. Gap rules never apply across a process restart (seq restarts at 0). macOS `ping6` may print no timeout lines at all _(verify M0.5)_ — the gap rule covers that.
+- **Sequence gaps** (seq jumps with no outcome lines) are loss rows, one per missing seq, with `ts` interpolated between the surrounding lines — **unless** a sleep/heartbeat gap (§4.8) overlaps that period, in which case they are dropped (no data). Seq arithmetic is modulo 65536. Gap rules never apply across a process restart (seq restarts at 0). macOS `ping6` may print no timeout lines at all (unverified — no IPv6 on the origin connection) — the gap rule covers that.
 - `ts` of a row = send time (reply: read time − RTT; timeout: read time − 2 s), so the outcome lands in the minute it was sent.
 - Each outcome is one row (`rtt_ms` NULL = lost), so `sent` = row count.
 - Restart on process exit, on target IP change, after wake, and every 24 h.
 - **Local Network privacy (macOS 15+).** Background agents need user permission to send to LAN addresses (including the router's DNS). At start the collector **sends one UDP datagram** to the gateway (a DNS query to port 53) to trigger the permission prompt _(verify M1.8 on macOS 15: whether this triggers the prompt, and whether Settings lists it as "python3" or "Python")_. It keeps running whether or not access is granted. Blocked detection is derived at read time (§6.1); while blocked, `doctor`, the dashboard and `missing` explain how to allow it.
 - Cost: ~8–14 targets × 1 small packet / 2 s — negligible.
 
-### 4.3 WiFi (`wifi.py`) — every 60 s
+### 4.3 WiFi (`wifi.py`) — every 5 min
 
 - `system_profiler SPAirPortDataType -json`, timeout 15 s. (The old `airport` CLI is non-functional since macOS 14.4.)
-- Expected shape _(verify M0.5)_: `SPAirPortDataType[0].spairport_airport_interfaces[*]`; use the entry whose `_name` equals the default-route WiFi device. Its `spairport_current_network_information` has:
+- Shape (verified on macOS 26, plan §8): `SPAirPortDataType[0].spairport_airport_interfaces[*]`; use the entry whose `_name` equals the default-route WiFi device. Its `spairport_current_network_information` has:
   - `spairport_signal_noise`: `"-55 dBm / -92 dBm"` → `rssi_dbm`, `noise_dbm`
   - `spairport_network_channel`: `"149 (5GHz, 80MHz)"` → `channel`, `band` (`2GHz` → `2.4`, `5GHz` → `5`, `6GHz` → `6`), `width_mhz`
-  - `spairport_network_rate` → `tx_rate_mbps`; `spairport_network_phymode` → `phy_mode`
+  - `spairport_network_rate` (a **number**, e.g. `576`) → `tx_rate_mbps`; `spairport_network_phymode` → `phy_mode`
+  - also present and ignored: `spairport_network_mcs`, `spairport_network_country_code`, `spairport_security_mode`; neighbouring networks under `spairport_airport_other_local_wireless_networks` (never stored); no BSSID field at all
+- Runtime: ~11 s on macOS 26 — hence the 5-minute interval.
 - Not associated / no current-network block → `ok = 1`, all fields NULL. Missing fields → NULL, never a crash. SSID/BSSID are **never** stored. A channel or band change between consecutive readings is treated as a likely roam/band switch.
 - `snr_db` is derived at read time (`rssi − noise`).
-- Running `system_profiler` may itself trigger a WiFi scan and spike latency _(verify M0.5: gateway p95 with the probe on vs off, 10 min each)_. If confirmed, `core/rollup.py` drops ping samples sent within `[wifi.started_ts − 3 s, wifi.ts + 3 s]` (thresholds flag `DROP_PINGS_AROUND_WIFI_PROBE`); minutes are not excluded.
+- Running `system_profiler` **does** spike latency (verified, plan §8: router pings > 50 ms rose from 4.3% to 14.7% while it ran). So `core/rollup.py` drops ping samples sent within `[wifi.started_ts − 3 s, wifi.ts + 3 s]` (`DROP_PINGS_AROUND_WIFI_PROBE = True`); minutes are not excluded. At a 5-minute interval this drops ~5% of samples.
 
 ### 4.4 Load / bufferbloat (`nq.py`) — 8 slots per day
 
-- Command: `networkQuality -c -s -M 20` (JSON, sequential download then upload, max 20 s). If `-M` is unsupported (checked once via `networkQuality -h`), run without it. _(verify M0.5)_
-- Parse (`parsers/networkquality.py`), tolerating missing/renamed keys: `dl_throughput`, `ul_throughput` (**bits/s** → store Mbps), `responsiveness` (RPM; also `dl_responsiveness`/`ul_responsiveness` if present), `base_rtt` (ms). Store raw JSON and macOS version.
+- Command: `networkQuality -c -s -M 20` (JSON, sequential download then upload, max 20 s). `-M` works on macOS 26 although it is missing from the usage line of `networkQuality -h` (it is in the option list); if a run fails with an unknown-option error, retry once without it and remember that.
+- Parse (`parsers/networkquality.py`), tolerating missing/renamed keys: `dl_throughput`, `ul_throughput` (**bits/s** → store Mbps), `dl_responsiveness` / `ul_responsiveness` (RPM; with `-s` there is **no** combined `responsiveness` key — use it only if present), `base_rtt` (ms), `dl_bytes_transferred` + `ul_bytes_transferred` (for the data-use estimate), `test_endpoint`. Store raw JSON and macOS version.
 - Derived: `loaded_ms = 60000 / rpm` (worse of dl/ul if both present) — an **approximation** of latency under load (includes some connection-setup time). `bufferbloat_ms = loaded_ms − base_rtt`.
 - Grade from `bufferbloat_ms` _(initial)_: **A < 30, B < 60, C < 200, D < 400, F ≥ 400**.
 - **Schedule:** `nq_schedule` slots (04:00 overnight reference; 10:00, 12:00, 14:00 daytime; 19:30, 20:30, 21:30, 22:30 evening). A slot fires once, within 5 min of its time; a slot missed because the Mac was asleep is not retried.
 - **Skip** if on battery (or battery state unknown), or if a `lag` event was recorded in the previous 2 minutes. Skipped runs are rows with `ok = 0`, `error = "skipped:<reason>"`.
 - `started_ts` / `ended_ts` stored; minutes overlapping a successful run ±30 s are excluded (§6.1).
-- Data use: ~1 GB per run on a fast line → **~8 GB/day** (`doctor` shows the estimate from actual throughput × duration).
+- Data use: measured ~0.57 GB per run at ~450/140 Mbps over WiFi → **~4.6 GB/day** at 8 runs (`doctor` shows the estimate from the stored byte counts).
 
 ### 4.5 DNS (`dns.py`) — every 60 s
 
@@ -203,14 +205,14 @@ YouTube and Netflix lookups only run when `discovery_lookups` is true.
 
 ### 4.6 Traceroute (`trace.py`) — every 20 min
 
-- `traceroute -I -n -q 3 -w 1 -m 20 <ip>` / `traceroute6 -I -n -q 3 -w 1 -m 20 <ip>` (ICMP echo probes; macOS `traceroute` is setuid, no sudo) _(verify M0.5)_.
+- `traceroute -I -n -q 3 -w 1 -m 20 <ip>` / `traceroute6 -I -n -q 3 -w 1 -m 20 <ip>` (ICMP echo probes; macOS `traceroute` is setuid, no sudo — verified, plan §8).
 - Targets: every active anchor and CDN, **sequentially**, budget 90 s per round (unfinished targets go first next round).
 - Stored as JSON hops `[{"ttl": 1, "ip": "…" | null, "rtts": [..]}]`. Trailing `*` hops = destination doesn't answer probes — not loss.
 - Used by the report (§8). **Interpretation rule:** a hop with high latency/loss that does **not** carry through to later hops is that router de-prioritising probes, not a problem.
 
 ### 4.7 Link (`link.py`) — refreshed every 10 s and on route change
 
-- Medium: `route -n get default` → `interface`; `networksetup -listallhardwareports` maps interface → hardware port. `wifi` if the port is "Wi-Fi"/"AirPort"; `other` for "iPhone USB", "Bluetooth PAN", "Thunderbolt Bridge"; otherwise `wired`.
+- Medium: `route -n get default` → `interface`; `networksetup -listallhardwareports` maps interface → hardware port. `wifi` if the port is "Wi-Fi"/"AirPort"; `other` for "iPhone USB", "Bluetooth PAN" and any port starting "Thunderbolt" (bridge members); otherwise `wired` (e.g. "Ethernet Adapter (en4)", "USB3.0 5K Graphic Docking").
 - VPN: `vpn = 1` if the interface from `route -n get 1.1.1.1` (or `route -n get -inet6 2606:4700:4700::1111`) is `utun*`, `ipsec*` or `ppp*` — this also catches VPNs that install `0/1` + `128/1` routes instead of replacing the default. iCloud Private Relay doesn't affect probes; `doctor` always mentions it as info.
 
 ### 4.8 Heartbeat, sleep & gaps (`collector/main.py`)
@@ -611,6 +613,9 @@ Native macOS app, native iPhone app (the v0 phone lag marker is a web page), plu
 | 2026-10-04 | IPv6 targets measured when available; verdict prefers IPv6 when it has enough targets. | Video apps prefer IPv6; IPv4 may take a different (CGNAT) path. |
 | 2026-10-04 | Exclude minutes with heavy traffic from the Mac itself; cap ISP verdicts at medium while bufferbloat holds. | Household load must not be blamed on the ISP. |
 | 2026-10-04 | Blocked/unresponsive derived at read time; discovery status kept as history. | Analysis must know what was true at each minute. |
+| 2026-10-27 | WiFi readout every **5 min** (was 60 s) and pings around it dropped. | Real capture: `system_profiler` takes ~11 s and triples router-ping spikes (plan §8). |
+| 2026-10-27 | YouTube target is the redirector (`approximate`) in v0; `report_mapping` POP name recorded. | `report_mapping` returns a POP name, not a cache host; conversion unverified. |
+| 2026-10-27 | nq data-use estimate ~4.6 GB/day. | Measured 0.57 GB per run on the origin connection. |
 
 ## 16. Glossary
 
