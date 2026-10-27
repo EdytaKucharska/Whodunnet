@@ -162,6 +162,7 @@ Format: **ID — title** · *depends on* — what · ✅ acceptance · 🧪 test
 - `collector/main.py`: start everything; heartbeat every 10 s; hooks for rollup (M2.1) and web server (M3.1) — no-ops until those land; daily prune; caffeinate on charger only; sleep detection via `time.time()` vs `time.monotonic()` (spec §4.8) → `system` gap event, rediscover, restart pings; route-change watch (10 s) → rediscover; SIGTERM → graceful stop; writes `meta.local_hostname` and `meta.macos_version`; runs the doctor checks at start and every 10 min → `meta.doctor_json` (spec §5) — so the doctor check functions live in a module the collector and `cli.py` share (`whodunnet/doctor.py`).
 - ✅ Close the lid 5 min → gap event; collector resumes on wake without restart; unplug charger → caffeinate released, pings continue.
 - 🧪 scheduler and sleep detection with a fake clock.
+- Note: slow probes (discovery, WiFi, DNS, load, traceroute, nq, doctor, prune, rollup hook) run one at a time on a worker thread with its own SQLite connection, so the 10 s heartbeat is never delayed; heartbeat, ping writes, link refresh and caffeinate stay on the main thread. Until rollups exist (M2.1) the doctor's gateway/Local Network checks read the last minutes of raw pings. `cli run` is wired in M1.8.
 
 **M1.8 — CLI & LaunchAgent** · *M1.7*
 - Implement spec §9 commands except `dashboard` (M3.4) and `report` (M4.2): `install`, `uninstall`, `run`, `status` (verdict line arrives in M2.5), `doctor`, `event`, `lag`, `export`, `purge`.
