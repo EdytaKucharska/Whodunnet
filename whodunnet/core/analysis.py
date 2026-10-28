@@ -216,10 +216,11 @@ def bufferbloat_finding(conn: sqlite3.Connection, start: int, end: int) -> dict 
     }
 
 
-def lag_markers(
+def lag_moments(
     conn: sqlite3.Connection, by_minute: dict[int, MinuteResult], start: int, end: int
-) -> dict:
-    moments = []
+) -> list[tuple[int, str, list[str]]]:
+    """[(ts, network_bad | network_ok | unknown, bad layers within ± LAG_WINDOW_MS)]."""
+    out = []
     events = conn.execute(
         "SELECT ts FROM events WHERE kind = 'lag' AND ts >= ? AND ts < ? ORDER BY ts", (start, end)
     ).fetchall()
@@ -229,11 +230,16 @@ def lag_markers(
         near = [by_minute[m] for m in range(first, hi + 1, MINUTE_MS) if m in by_minute]
         bad = [r.layer for r in near if r.layer not in ("ok", "inconclusive")]
         if bad:
-            moments.append(("network_bad", bad))
+            out.append((ts, "network_bad", bad))
         elif any(r.layer == "ok" for r in near):
-            moments.append(("network_ok", []))
+            out.append((ts, "network_ok", []))
         else:
-            moments.append(("unknown", []))
+            out.append((ts, "unknown", []))
+    return out
+
+
+def lag_markers(moments: Sequence[tuple[int, str, list[str]]]) -> dict:
+    moments = [(kind, layers) for _ts, kind, layers in moments]
     known = [m for m in moments if m[0] != "unknown"]
     n_bad = sum(1 for m in known if m[0] == "network_bad")
     n_ok = len(known) - n_bad
@@ -321,8 +327,8 @@ def _span(window: Sequence[str]) -> str:
 
 
 @dataclass
-class _Facts:
-    """Everything the selection and the text need, computed once."""
+class Facts:
+    """Everything the selection, the text and the report need, computed once."""
 
     cov: Coverage
     af: int
@@ -332,6 +338,7 @@ class _Facts:
     findings: list[LayerFinding]
     bloat: dict | None
     lag: dict
+    moments: list[tuple[int, str, list[str]]]
     link_check: str | None
     changes: list[dict]
     gateway_baseline: bool
@@ -343,7 +350,7 @@ class _Facts:
         return [w for w in self.evenings if w.covered]
 
 
-def _facts(conn: sqlite3.Connection, cfg: dict, start: int, end: int) -> _Facts:
+def facts(conn: sqlite3.Connection, cfg: dict, start: int, end: int) -> Facts:
     cov = coverage.load(conn, start - th.BASELINE_LOOKBACK_DAYS * DAY_MS, end)
     bases = baseline.compute(cov, cfg, start, end)
     results = attribution.attribute(cov, bases, start, end, attribution.read_wifi(conn, start, end))
@@ -362,7 +369,8 @@ def _facts(conn: sqlite3.Connection, cfg: dict, start: int, end: int) -> _Facts:
         if evening_minutes and blocked > th.NOT_MEASURABLE_BLOCKED_SHARE * len(evening_minutes)
         else []
     )
-    return _Facts(
+    moments = lag_moments(conn, by_minute, start, end)
+    return Facts(
         cov=cov,
         af=af,
         results=results[af],
@@ -370,7 +378,8 @@ def _facts(conn: sqlite3.Connection, cfg: dict, start: int, end: int) -> _Facts:
         daytimes=daytimes,
         findings=sorted(layer_findings(evenings, daytimes), key=lambda f: -f.evening_rate),
         bloat=bufferbloat_finding(conn, start, end),
-        lag=lag_markers(conn, by_minute, start, end),
+        lag=lag_markers(moments),
+        moments=moments,
         link_check=wired_vs_wifi(cov, evenings),
         changes=before_after(conn, evenings),
         gateway_baseline=gateway_baseline,
@@ -379,7 +388,7 @@ def _facts(conn: sqlite3.Connection, cfg: dict, start: int, end: int) -> _Facts:
     )
 
 
-def _select(f: _Facts) -> tuple[str, str | None, str, LayerFinding | None, str | None, list[str]]:
+def _select(f: Facts) -> tuple[str, str | None, str, LayerFinding | None, str | None, list[str]]:
     """(verdict, qualifier, confidence, chosen layer finding, lag layer, extra notes)."""
     notes: list[str] = []
     evening = [x for x in f.findings if x.qualifier == "evening"]
@@ -422,7 +431,7 @@ def _select(f: _Facts) -> tuple[str, str | None, str, LayerFinding | None, str |
     return "no_problem_found", None, level, None, None, notes
 
 
-def _missing(f: _Facts, verdict: str, chosen: LayerFinding | None, notes: list[str], end: int):
+def _missing(f: Facts, verdict: str, chosen: LayerFinding | None, notes: list[str], end: int):
     missing = []
     n_ev = len(f.covered_evenings)
     goal = th.PROBLEM_MIN_WINDOWS if n_ev < th.PROBLEM_MIN_WINDOWS else th.HIGH_MIN_EVENINGS
@@ -466,7 +475,11 @@ def _missing(f: _Facts, verdict: str, chosen: LayerFinding | None, notes: list[s
 
 
 def analyse(conn: sqlite3.Connection, cfg: dict, start_ms: int, end_ms: int) -> dict:
-    f = _facts(conn, cfg, start_ms, end_ms)
+    return verdict_from(facts(conn, cfg, start_ms, end_ms), cfg, start_ms, end_ms)
+
+
+def verdict_from(f: Facts, cfg: dict, start_ms: int, end_ms: int) -> dict:
+    """The §6.7 verdict dict from already-computed facts (the report reuses them)."""
     verdict, qualifier, confidence, chosen, lag_layer, notes = _select(f)
     ev_span, dt_span = _span(cfg["evening_window"]), _span(cfg["daytime_window"])
 

@@ -526,7 +526,7 @@ Single self-contained HTML (inline CSS/SVG), A4 print CSS → the user prints to
 9. **Your rights (UK)** — short fixed text: Ofcom's voluntary broadband speeds code, under which signatory ISPs give a minimum guaranteed **download speed** and must fix a shortfall within 30 days or let you leave without penalty (the evening `networkQuality` download figures are the relevant evidence); check whether your ISP is a signatory; you can escalate to an ADR scheme after 8 weeks. Shows `RIGHTS_TEXT_CHECKED` (a constant in `core/report.py`, initially `2026-10-04`).
 10. **Appendix** — daily table: date, covered %, evening and daytime layer rates, nq median down/up/grade, lag moments.
 
-Privacy: the household public IP is never collected, so it never appears. Home hops are shown as "home router" / "home device", without IPs. ISP and beyond-ISP hop IPs are shown (that's the evidence). No SSID.
+Privacy: the household public IP is never collected, so it never appears. Home hops are shown as "home router" / "home device", without IPs. Public ISP and beyond-ISP hop IPs are shown (that's the evidence); private, CGNAT (100.64/10, which could be the household's own WAN address), link-local and ULA addresses are printed as "private address" wherever they appear (M4.1). No SSID. In the appendix the day's grade is the median, taking the worse of the middle two for an even count; the worst-affected target breaks ties by kind, then name.
 
 ## 9. CLI
 
