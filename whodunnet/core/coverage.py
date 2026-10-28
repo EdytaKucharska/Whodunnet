@@ -41,6 +41,9 @@ class Coverage:
         int, list[tuple[int, str, str | None]]
     ]  # target -> [(from_ts, status, reason)]
     ip_epochs: dict[int, list[int]]  # target -> sorted epoch start times
+    ip_history: dict[int, list[tuple[int, str]]] = field(
+        default_factory=dict
+    )  # target -> [(from_ts, ip)]
     blocked: set[int] = field(default_factory=set)  # minutes with the gateway blocked
     unresponsive: dict[int, list[tuple[int, int]]] = field(
         default_factory=dict
@@ -264,8 +267,10 @@ def load(conn: sqlite3.Connection, start_ms: int, end_ms: int) -> Coverage:
     ):
         status_history[r["target_id"]].append((r["from_ts"], r["status"], r["reason"]))
     ip_epochs: dict[int, list[int]] = defaultdict(list)
-    for r in conn.execute("SELECT target_id, from_ts FROM target_ips ORDER BY from_ts, rowid"):
+    ip_history: dict[int, list[tuple[int, str]]] = defaultdict(list)
+    for r in conn.execute("SELECT target_id, ip, from_ts FROM target_ips ORDER BY from_ts, rowid"):
         ip_epochs[r["target_id"]].append(r["from_ts"])
+        ip_history[r["target_id"]].append((r["from_ts"], r["ip"]))
 
     cov = Coverage(
         start=start,
@@ -279,6 +284,7 @@ def load(conn: sqlite3.Connection, start_ms: int, end_ms: int) -> Coverage:
         local_load=local_load,
         status_history=dict(status_history),
         ip_epochs=dict(ip_epochs),
+        ip_history=dict(ip_history),
     )
     cov.blocked = _derive_blocked(cov)
     cov.unresponsive = _derive_unresponsive(conn, cov)

@@ -23,3 +23,9 @@ DOWNSTREAM_OK_MAX_LOST = 2  # "had < 2 lost"
 UNRESPONSIVE_FIRST_MINUTES = 10
 UNRESPONSIVE_LOSS_SHARE = 0.5
 UNRESPONSIVE_GATEWAY_MAX_LOST = 2
+
+# ---- §6.2 baseline ------------------------------------------------------------------------------
+BASELINE_LOOKBACK_DAYS = 7  # look-back ending at the end of the day being judged
+BASELINE_HOUR_MIN_COVERED = 45  # covered minutes (with a row for the target) for a candidate hour
+BASELINE_MIN_HOURS = 4  # fewer chosen hours → no baseline that day
+BASELINE_FALLBACK_SHARE = 0.25  # quiet window too thin → this share of the calmest candidate hours
