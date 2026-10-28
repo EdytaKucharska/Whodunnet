@@ -408,6 +408,39 @@ def cmd_export(args) -> int:
     return 0
 
 
+def cmd_report(args) -> int:
+    from whodunnet.core import report
+
+    paths = _paths(args)
+    try:
+        start, end = report.parse_range(args.date_from, args.date_to)
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+    try:
+        cfg = _load_config(paths)
+    except config.ConfigError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+    conn = _readonly(paths)
+    if conn is None:
+        print("No data yet.", file=sys.stderr)
+        return 1
+    try:
+        html = report.render(report.build(conn, cfg, start, end))
+    finally:
+        conn.close()
+    out = (
+        Path(args.output)
+        if args.output
+        else paths.reports / report.filename(args.date_from.strip(), args.date_to.strip())
+    )
+    report.write(out, html)
+    print(f"Wrote {out}")
+    print("Open it in a browser and use Print → Save as PDF to send it to your ISP.")
+    return 0
+
+
 def cmd_purge(args) -> int:
     try:
         before = timeutil.start_of_local_day(args.before)
@@ -442,6 +475,7 @@ HANDLERS = {
     "export": cmd_export,
     "purge": cmd_purge,
     "dashboard": cmd_dashboard,
+    "report": cmd_report,
 }
 
 

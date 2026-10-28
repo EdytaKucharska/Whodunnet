@@ -14,18 +14,21 @@ from __future__ import annotations
 import html
 import ipaddress
 import json
+import os
 import sqlite3
 import statistics
 import time
 from collections import Counter
 from collections.abc import Sequence
+from pathlib import Path
 
-from whodunnet import __version__
+from whodunnet import __version__, timeutil
 from whodunnet.core import analysis, baseline, store
 from whodunnet.core import thresholds as th
 from whodunnet.core.attribution import LAYERS
 from whodunnet.core.coverage import DOWNSTREAM_KINDS, MINUTE_MS
 
+MAX_DAYS = 62  # longest report range (CLI and dashboard)
 RIGHTS_TEXT_CHECKED = "2026-10-04"  # when the UK rights text below was last checked
 RIGHTS_TEXT = [
     (
@@ -447,6 +450,32 @@ def _appendix(conn: sqlite3.Connection, f: analysis.Facts, start: int, end: int)
             }
         )
     return out
+
+
+def parse_range(date_from: str | None, date_to: str | None) -> tuple[int, int]:
+    """Inclusive local dates YYYY-MM-DD → [start_ms, end_ms). ValueError with a readable message."""
+    if not date_from or not date_to:
+        raise ValueError("give both dates, YYYY-MM-DD")
+    start = timeutil.start_of_local_day(date_from)
+    end = timeutil.end_of_local_day(date_to)
+    if end <= start:
+        raise ValueError("the start date must not be after the end date")
+    if len(baseline.local_days(start, end)) > MAX_DAYS:
+        raise ValueError(f"a report covers at most {MAX_DAYS} days")
+    return start, end
+
+
+def filename(date_from: str, date_to: str) -> str:
+    return f"whodunnet-report-{date_from}-{date_to}.html"
+
+
+def write(path: Path, text: str) -> Path:
+    """Write atomically (temp file + rename) so a half-written report never replaces a good one."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(tmp, path)
+    return path
 
 
 def build(conn: sqlite3.Connection, cfg: dict, start_ms: int, end_ms: int) -> dict:

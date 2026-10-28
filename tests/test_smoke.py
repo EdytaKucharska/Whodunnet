@@ -32,10 +32,8 @@ def test_help_lists_every_command():
         assert command in out
 
 
-@pytest.mark.parametrize("command", [["report", "--from", "2026-10-01", "--to", "2026-10-02"]])
-def test_stub_commands_exit_2(command, capsys):
-    assert cli.main(command) == 2
-    assert "not implemented yet" in capsys.readouterr().err
+def test_every_command_is_implemented():
+    assert set(cli.HANDLERS) == set(cli.COMMANDS)
 
 
 def test_every_command_accepts_data_dir():

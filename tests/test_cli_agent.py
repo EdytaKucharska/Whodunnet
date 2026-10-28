@@ -359,3 +359,42 @@ def test_dashboard_says_when_the_collector_is_not_running(p, monkeypatch, capsys
     monkeypatch.setattr("webbrowser.open", lambda url: pytest.fail("should not open"))
     assert run_cli(p, "dashboard") == 1
     assert "run --foreground" in capsys.readouterr().err
+
+
+# ---- report ---------------------------------------------------------------------------------------
+
+
+def test_report_writes_to_the_reports_folder(p, london, capsys):
+    from tests import scenarios as sc
+
+    conn = store.connect(p.db)
+    sc.new(conn, days=3).build()
+    conn.close()
+    assert run_cli(p, "report", "--from", "2026-10-01", "--to", "2026-10-03") == 0
+    out = p.reports / "whodunnet-report-2026-10-01-2026-10-03.html"
+    assert out.exists() and "<h2>10. Appendix" in out.read_text()
+    assert str(out) in capsys.readouterr().out
+    assert not list(p.reports.glob(".*.tmp"))
+
+
+def test_report_output_option(p, tmp_path, london):
+    from tests import scenarios as sc
+
+    conn = store.connect(p.db)
+    sc.new(conn, days=2).build()
+    conn.close()
+    target = tmp_path / "out" / "mine.html"
+    assert (
+        run_cli(p, "report", "--from", "2026-10-01", "--to", "2026-10-02", "-o", str(target)) == 0
+    )
+    assert "Broadband evidence report" in target.read_text()
+
+
+def test_report_errors(p, capsys):
+    assert run_cli(p, "report", "--from", "2026-10-05", "--to", "2026-10-01") == 2
+    assert "must not be after" in capsys.readouterr().err
+    assert run_cli(p, "report", "--from", "2026-01-01", "--to", "2026-10-01") == 2
+    assert "at most 62 days" in capsys.readouterr().err
+    assert run_cli(p, "report", "--from", "1 Oct", "--to", "2026-10-01") == 2
+    assert run_cli(p, "report", "--from", "2026-10-01", "--to", "2026-10-02") == 1
+    assert "No data yet" in capsys.readouterr().err

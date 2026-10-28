@@ -209,7 +209,7 @@ Format: **ID — title** · *depends on* — what · ✅ acceptance · 🧪 test
 ### M4 — Evidence report
 
 **M4.1 — Report builder** · *M2.5* — `core/report.py` → self-contained HTML with the 10 sections of spec §8 (worst-affected target, traceroute selection, positional hop labelling, before/after, UK rights text with `RIGHTS_TEXT_CHECKED`); A4 print CSS. Note: `analysis.facts()` / `verdict_from()` split out so the report computes the facts once; `analysis.lag_moments()` gives the per-moment list. `report.build()` returns a JSON-able model, `report.render()` the HTML (no scripts). The 8-day sample prints to 4 A4 pages in Chromium with no network requests.
-**M4.2 — CLI & dashboard hook** · *M4.1, M3.2* — `report --from --to [-o]`; `GET /api/report`; Report view.
+**M4.2 — CLI & dashboard hook** · *M4.1, M3.2* — `report --from --to [-o]`; `GET /api/report`; Report view. Note: `report.parse_range` (shared by CLI and API) caps ranges at 62 days; the CLI writes atomically; the API serves the HTML with a no-scripts CSP and writes nothing; the Report view opens its tab before the fetch (Safari pop-up rule) and loads the report as a blob URL.
 - ✅ For a 7-day scenario DB the founder judges the report readable by a non-technical person and it prints cleanly to PDF.
 - 🧪 every section present; renders with sparse data, zero lag moments, no traceroutes; no private IP or SSID in output.
 

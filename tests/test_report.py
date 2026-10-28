@@ -251,3 +251,39 @@ def test_wired_section_when_wired_evenings_exist(conn):
     assert m["wired"]["check"] == "confirms_wifi"
     assert m["wired"]["bad_rate"]["wired"] < m["wired"]["bad_rate"]["wifi"]
     assert "the WiFi is the problem" in report.render(m)
+
+
+# ---- range, filename, write -------------------------------------------------------------------------
+
+
+def test_parse_range_is_inclusive_local_dates():
+    start, end = report.parse_range("2026-10-01", "2026-10-07")
+    assert start == sc.local_ms(2026, 10, 1) and end == sc.local_ms(2026, 10, 8)
+    # 25 October 2026 is the 25-hour clock-change day in London.
+    start, end = report.parse_range("2026-10-25", "2026-10-25")
+    assert end - start == 25 * sc.HOUR
+    assert report.parse_range("2026-08-01", "2026-10-01")[0] == sc.local_ms(2026, 8, 1)  # 62 days
+
+
+@pytest.mark.parametrize(
+    ("date_from", "date_to", "message"),
+    [
+        (None, "2026-10-01", "both dates"),
+        ("2026-10-02", "2026-10-01", "must not be after"),
+        ("2026-07-31", "2026-10-01", "at most 62 days"),
+        ("01/10/2026", "2026-10-02", "YYYY-MM-DD"),
+    ],
+)
+def test_parse_range_errors(date_from, date_to, message):
+    with pytest.raises(ValueError, match=message):
+        report.parse_range(date_from, date_to)
+
+
+def test_write_is_atomic_and_creates_folders(tmp_path):
+    target = tmp_path / "a" / "b" / report.filename("2026-10-01", "2026-10-07")
+    report.write(target, "one")
+    report.write(target, "two")
+    assert (
+        target.read_text() == "two" and target.name == "whodunnet-report-2026-10-01-2026-10-07.html"
+    )
+    assert [f.name for f in target.parent.iterdir()] == [target.name]

@@ -501,8 +501,9 @@ All views work at phone width. The phone `/lag` page is one big button and a con
 
 `from`/`to` are UTC epoch ms everywhere except `/api/report`, which takes local dates `YYYY-MM-DD` (inclusive) like the CLI. Errors: `{"error": "..."}` with 400/403/404.
 
-**Shapes (M3.1).** Defaults: `to` = now, `from` = `to` − 1 day (timeline), 7 days (heatmap), 14 days (compare), 30 days (events). Range caps: timeline 8 days, heatmap/compare 31 days (400 above). The report returns 501 until M4.2.
+**Shapes (M3.1).** Defaults: `to` = now, `from` = `to` − 1 day (timeline), 7 days (heatmap), 14 days (compare), 30 days (events). Range caps: timeline 8 days, heatmap/compare 31 days, report 62 days (400 above).
 
+- `GET /api/report?from=YYYY-MM-DD&to=YYYY-MM-DD` (inclusive local dates, both required, ≤ 62 days) → the §8 HTML (`text/html`, `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'`, `Content-Disposition: inline; filename="whodunnet-report-<from>-<to>.html"`); the dashboard opens it in a new tab. Nothing is written to disk.
 - `GET /api/verdict` → the §6.7 object (cached ≤ 60 s while no new rollup or event exists).
 - `GET /api/timeline` → `{from, to, address_family, step, targets: [{id, kind, name, af, ip, status, active}], rollups: {"<target_id>": [[bucket, sent, lost, p50, p95, jitter], …]}, layers: [[bucket, layer], …], wifi: [[ts, rssi_dbm, band, channel], …], events: [{id, ts, kind, note, source}], gaps: [[start, end], …], excluded: [[minute, reason], …]}`. `step` is 60 000 ms up to 1 day, else 300 000 ms: buckets sum sent/lost, average p50/jitter, take the max p95 and the most severe layer.
 - `GET /api/heatmap?metric=layer_rate|loss|p95|bufferbloat|download` → `{metric, days: ["YYYY-MM-DD"], hours: [0…23], values: [[24 numbers or null] per day]}` (layer_rate = share of judged minutes not `ok`; loss = lost/sent and p95 = mean over downstream rollups; bufferbloat/download = mean over successful nq runs).
@@ -542,7 +543,7 @@ All commands: `python3 -m whodunnet <command>`; all accept `--data-dir` (or `WHO
 | `dashboard` | Open `http://127.0.0.1:<port>/` (served by the collector; if it isn't running, say so and suggest `run --foreground`). |
 | `event "<note>" [--kind router_change\|package_change\|isp_contact\|other] [--at "YYYY-MM-DD HH:MM"]` | Add an event; defaults: kind `other`, time now. |
 | `lag` | Add a `lag` event now (`source = cli`). |
-| `report --from YYYY-MM-DD --to YYYY-MM-DD [-o FILE]` | Write the report (default in the data dir's `reports/`). Dates inclusive. |
+| `report --from YYYY-MM-DD --to YYYY-MM-DD [-o FILE]` | Write the report (default in the data dir's `reports/`). Dates inclusive, at most 62 days; written atomically. |
 | `export [--from] [--to] -o DIR` | One CSV per table: `targets, target_ips, target_status, ping, minute_rollup, wifi, dns, nq, traceroute, local_load, events, heartbeat`. (`gateway_mac` and `meta` are not exported — privacy.) |
 | `purge --before YYYY-MM-DD [--yes]` | Delete raw and rollup data before a date (asks to confirm unless `--yes`). |
 
