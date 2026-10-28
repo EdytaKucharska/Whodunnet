@@ -13,6 +13,7 @@ local.
 from __future__ import annotations
 
 import dataclasses
+import functools
 import json
 import random
 import sqlite3
@@ -62,6 +63,7 @@ def local_ms(year: int, month: int, day: int, hour: int = 0, minute: int = 0) ->
     return int(time.mktime((year, month, day, hour, minute, 0, 0, 0, -1)) * 1000)
 
 
+@functools.cache  # cleared at the start of every build (TZ may change)
 def local_hour(ms: int) -> float:
     t = time.localtime(ms / 1000)
     return t.tm_hour + t.tm_min / 60
@@ -212,6 +214,7 @@ class Scenario:
         )
 
     def build(self) -> Scenario:
+        local_hour.cache_clear()
         rng = random.Random(self.seed)
         rollups: list[tuple] = []
         beats: list[tuple[int]] = []
@@ -413,7 +416,7 @@ def long_sleep_gaps(conn):
 
 
 def ipv6_bad_ipv4_clean(conn):
-    s = new(conn, days=7, v6=True)  # 14 targets: 7 days keeps the build under a second
+    s = new(conn, days=5, v6=True)  # 14 targets: 5 days keeps the build under a second
     s.bad_when(is_evening, lambda t: t.af == 6 and t.kind in ("anchor", "cdn"))
     s.expected = {"verdict": "isp_upstream", "qualifier": "evening", "address_family": 6}
     return s.build()
