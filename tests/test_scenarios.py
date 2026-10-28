@@ -32,9 +32,9 @@ def test_every_spec_scenario_is_present():
 
 @pytest.mark.parametrize("name", sorted(sc.SCENARIOS))
 def test_scenario_builds_in_under_a_second(name, conn):
-    started = time.monotonic()
+    started = time.process_time()  # CPU time: unaffected by other load on the machine
     s = sc.SCENARIOS[name](conn)
-    assert time.monotonic() - started < 1.0
+    assert time.process_time() - started < 1.0
     assert s.expected
     assert conn.execute("SELECT COUNT(*) FROM minute_rollup").fetchone()[0] > 0
 

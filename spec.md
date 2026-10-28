@@ -499,7 +499,17 @@ All views work at phone width. The phone `/lag` page is one big button and a con
 | `GET /api/report?from&to` | Generated report HTML |
 | `GET /api/settings` · `POST /api/settings` | LAN access, token regeneration |
 
-`from`/`to` are UTC epoch ms everywhere except `/api/report`, which takes local dates `YYYY-MM-DD` (inclusive) like the CLI. Errors: `{"error": "..."}` with 400/403/404. Exact request/response shapes are defined in M3.1 and recorded here in the same PR. The phone link is `http://<meta.local_hostname>.local:<port>/lag?t=<token>` (`local_hostname` from `scutil --get LocalHostName`, written by the collector).
+`from`/`to` are UTC epoch ms everywhere except `/api/report`, which takes local dates `YYYY-MM-DD` (inclusive) like the CLI. Errors: `{"error": "..."}` with 400/403/404.
+
+**Shapes (M3.1).** Defaults: `to` = now, `from` = `to` − 1 day (timeline), 7 days (heatmap), 14 days (compare), 30 days (events). Range caps: timeline 8 days, heatmap/compare 31 days (400 above). The report returns 501 until M4.2.
+
+- `GET /api/verdict` → the §6.7 object (cached ≤ 60 s while no new rollup or event exists).
+- `GET /api/timeline` → `{from, to, address_family, targets: [{id, kind, name, af, ip, status, active}], rollups: {"<target_id>": [[minute, sent, lost, p50, p95, jitter], …]}, layers: [[minute, layer], …], wifi: [[ts, rssi_dbm, band, channel], …], events: [{id, ts, kind, note, source}], gaps: [[start, end], …], excluded: [[minute, reason], …]}`.
+- `GET /api/heatmap?metric=layer_rate|loss|p95|bufferbloat|download` → `{metric, days: ["YYYY-MM-DD"], hours: [0…23], values: [[24 numbers or null] per day]}` (layer_rate = share of judged minutes not `ok`; loss = lost/sent and p95 = mean over downstream rollups; bufferbloat/download = mean over successful nq runs).
+- `GET /api/compare` → `{address_family, families: {"4"|"6": {layer: {evening_rate, daytime_rate, evenings_shown, evenings_covered, daytimes_shown, daytimes_covered}}}}`.
+- `GET /api/events` → `[{id, ts, kind, note, source}]`; `POST /api/events` `{kind, note?, ts?}` → the new event (`source = dashboard`); `DELETE /api/events/<id>` → `{deleted: id}` (404 for system/lag events).
+- `POST /api/lag` `{}` → `{id, ts, source}` (`dashboard` from loopback, `phone` from the LAN).
+- `GET /api/settings` → `{lan_access, port, phone_url, token_set, doctor: [{check, status, message, fix}]}`; `POST /api/settings` `{lan_access?: bool, regenerate_token?: true}` → the same object; toggling `lan_access` rebinds the server on the same port right after the response. The phone link is `http://<meta.local_hostname>.local:<port>/lag?t=<token>` (`local_hostname` from `scutil --get LocalHostName`, written by the collector).
 
 ## 8. Evidence report (`core/report.py`)
 

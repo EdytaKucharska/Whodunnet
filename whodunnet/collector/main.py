@@ -127,7 +127,8 @@ class Collector:
         self._targets_changed = threading.Event()
         self._route: tuple[str | None, str | None] | None = None
         self.rollup_hook: Callable[[sqlite3.Connection, int], object] | None = rollup.rollup_recent
-        self.web_hook: Callable[[Collector], object] | None = None  # M3.1
+        self.web_hook: Callable[[Collector], object] | None = None  # cli run: the dashboard
+        self.web = None  # the WebServer, once web_hook started it
 
     # ---- connections and context ---------------------------------------------------------------
 
@@ -343,6 +344,9 @@ class Collector:
     def stop(self) -> None:
         """Graceful stop: finish the running probe, flush pings, release caffeinate."""
         self.stop_event.set()
+        if self.web is not None:
+            self.web.stop()
+            self.web = None
         self.scheduler.shutdown()
         rows = self.pings.stop_all()
         if self.conn is not None:

@@ -188,7 +188,10 @@ def cmd_run(args) -> int:
         logging.getLogger("whodunnet").error("%s", exc)
         print(exc, file=sys.stderr)
         return 1
+    from whodunnet.web.server import start_for_collector
+
     collector = Collector(paths, cfg)
+    collector.web_hook = start_for_collector
     collector.install_signal_handlers()
     collector.run(nq_now=args.nq_now)
     return 0
