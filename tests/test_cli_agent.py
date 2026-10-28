@@ -328,3 +328,34 @@ def test_explicit_data_dir_from_env(monkeypatch, tmp_path):
     monkeypatch.delenv(paths.ENV_DATA_DIR)
     assert cli._explicit_data_dir(args) is None
     assert os.environ.get(paths.ENV_DATA_DIR) is None
+
+
+# ---- dashboard ------------------------------------------------------------------------------------
+
+
+def test_dashboard_opens_the_browser_when_the_collector_answers(p, monkeypatch, capsys):
+    from whodunnet.web import server as web
+
+    srv = web.WebServer(p, 0, lambda: None)
+    srv.start(lan_access=False)
+    try:
+        config.save_overrides(p.config, {"web_port": srv.port})
+        opened = []
+        monkeypatch.setattr("webbrowser.open", lambda url: opened.append(url) or True)
+        assert run_cli(p, "dashboard") == 0
+    finally:
+        srv.stop()
+    assert opened == [f"http://127.0.0.1:{srv.port}/"]
+    assert "Opening" in capsys.readouterr().out
+
+
+def test_dashboard_says_when_the_collector_is_not_running(p, monkeypatch, capsys):
+    import socket
+
+    with socket.socket() as s:  # a port with nothing listening
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    config.save_overrides(p.config, {"web_port": port})
+    monkeypatch.setattr("webbrowser.open", lambda url: pytest.fail("should not open"))
+    assert run_cli(p, "dashboard") == 1
+    assert "run --foreground" in capsys.readouterr().err

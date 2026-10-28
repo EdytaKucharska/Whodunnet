@@ -204,7 +204,7 @@ Format: **ID — title** · *depends on* — what · ✅ acceptance · 🧪 test
 - ✅ From an iPhone on the same WiFi: open link → tap → `lag` event (source `phone`) appears on the Mac timeline within 5 s. With `lan_access=false` the phone can't connect; with a wrong token → 403.
 - 🧪 token required / wrong / right; cookie set; regenerated token invalidates old cookie; only `/lag` + `POST /api/lag` reachable from non-loopback.
 
-**M3.4 — CLI `dashboard`** · *M3.1* — opens the browser (spec §9).
+**M3.4 — CLI `dashboard`** · *M3.1* — opens the browser (spec §9). Note: it first checks the collector answers `GET /` on `127.0.0.1:<web_port>` (2 s timeout); if not, it says so and suggests `status` / `run --foreground`, exit 1. Opens with stdlib `webbrowser`.
 
 ### M4 — Evidence report
 

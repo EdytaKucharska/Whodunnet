@@ -263,6 +263,44 @@ def cmd_status(args) -> int:
     return 0
 
 
+def collector_serving(port: int, timeout: float = 2.0) -> bool:
+    """True if the collector's web server answers on 127.0.0.1:<port>."""
+    import http.client
+
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=timeout)
+    try:
+        conn.request("GET", "/", headers={"Host": f"127.0.0.1:{port}"})
+        return conn.getresponse().status == 200
+    except OSError:
+        return False
+    finally:
+        conn.close()
+
+
+def cmd_dashboard(args) -> int:
+    import webbrowser
+
+    paths = _paths(args)
+    try:
+        cfg = _load_config(paths)
+    except config.ConfigError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+    url = f"http://127.0.0.1:{cfg['web_port']}/"
+    if not collector_serving(cfg["web_port"]):
+        print(
+            f"The collector isn't answering at {url}\n"
+            "Check `python3 -m whodunnet status`, or start it in this window with "
+            "`python3 -m whodunnet run --foreground`.",
+            file=sys.stderr,
+        )
+        return 1
+    print(f"Opening {url}")
+    if not webbrowser.open(url):
+        print("Couldn't open a browser; open that address yourself.", file=sys.stderr)
+    return 0
+
+
 def cmd_doctor(args) -> int:
     from whodunnet.probes.link import current_link
 
@@ -403,6 +441,7 @@ HANDLERS = {
     "lag": cmd_lag,
     "export": cmd_export,
     "purge": cmd_purge,
+    "dashboard": cmd_dashboard,
 }
 
 
