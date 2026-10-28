@@ -546,3 +546,44 @@ def analyse(conn: sqlite3.Connection, cfg: dict, start_ms: int, end_ms: int) -> 
         },
         "missing": missing,
     }
+
+
+# ---- views for the dashboard API (spec §7.3) -----------------------------------------------------
+
+
+def minute_layers(
+    conn: sqlite3.Connection, cfg: dict, start: int, end: int
+) -> tuple[Coverage, int, dict[int, list[MinuteResult]]]:
+    """(coverage, chosen family, per-family minute results), the way `analyse` computes them."""
+    cov = coverage.load(conn, start - th.BASELINE_LOOKBACK_DAYS * DAY_MS, end)
+    bases = baseline.compute(cov, cfg, start, end)
+    results = attribution.attribute(cov, bases, start, end, attribution.read_wifi(conn, start, end))
+    return cov, attribution.choose_family(results), results
+
+
+def compare(conn: sqlite3.Connection, cfg: dict, start: int, end: int) -> dict:
+    """Evening vs daytime per layer and address family (the table behind the verdict)."""
+    cov, af, results = minute_layers(conn, cfg, start, end)
+    families = {}
+    for family, rows in results.items():
+        if not rows:
+            continue
+        by_minute = {r.minute: r for r in rows}
+        evenings = [
+            w for w in windows(cov, by_minute, start, end, cfg["evening_window"]) if w.covered
+        ]
+        daytimes = [
+            w for w in windows(cov, by_minute, start, end, cfg["daytime_window"]) if w.covered
+        ]
+        families[str(family)] = {
+            layer: {
+                "evening_rate": round(overall_rate(evenings, layer), 4),
+                "daytime_rate": round(overall_rate(daytimes, layer), 4),
+                "evenings_shown": sum(1 for w in evenings if w.rate(layer) >= th.LAYER_SHOWN_RATE),
+                "evenings_covered": len(evenings),
+                "daytimes_shown": sum(1 for w in daytimes if w.rate(layer) >= th.LAYER_SHOWN_RATE),
+                "daytimes_covered": len(daytimes),
+            }
+            for layer in LAYERS
+        }
+    return {"address_family": af, "families": families}

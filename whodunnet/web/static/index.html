@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Whodunnet</title>
+<style>
+  :root { color-scheme: light dark; font-family: -apple-system, system-ui, sans-serif; }
+  body { margin: 0 auto; max-width: 40rem; padding: 1.5rem 1rem; line-height: 1.5; }
+  .card { border: 1px solid #8884; border-radius: 12px; padding: 1rem 1.25rem; }
+  button { font-size: 1.1rem; padding: .7rem 1.2rem; border-radius: 10px; border: 0;
+           background: #d33; color: #fff; }
+  pre { white-space: pre-wrap; font-size: .85rem; }
+</style>
+</head>
+<body>
+<h1>Whodunnet</h1>
+<p>The full dashboard arrives in the next update. Until then, here is the current verdict.</p>
+<div class="card" id="verdict">Loading…</div>
+<p><button id="lag">It's lagging now</button> <span id="lag-done"></span></p>
+<script>
+async function api(path, options) {
+  const r = await fetch(path, options);
+  return r.json();
+}
+api("/api/verdict").then(v => {
+  const el = document.getElementById("verdict");
+  if (v.error) { el.textContent = v.error; return; }
+  el.innerHTML = "";
+  const h = document.createElement("h2");
+  h.textContent = v.verdict.replace(/_/g, " ") + (v.qualifier ? " (" + v.qualifier.replace(/_/g, " ") + ")" : "")
+    + " — confidence " + v.confidence;
+  const p = document.createElement("p");
+  p.textContent = v.summary;
+  const pre = document.createElement("pre");
+  pre.textContent = "Next steps:\n- " + v.next_steps.join("\n- ")
+    + (v.missing.length ? "\n\nMissing:\n- " + v.missing.join("\n- ") : "");
+  el.append(h, p, pre);
+});
+document.getElementById("lag").onclick = async () => {
+  await api("/api/lag", {method: "POST", headers: {"X-Whodunnet": "1", "Content-Type": "application/json"}, body: "{}"});
+  document.getElementById("lag-done").textContent = "Recorded ✓";
+};
+</script>
+</body>
+</html>
