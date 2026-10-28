@@ -242,10 +242,37 @@ def test_settings_lan_toggle_rebinds(site):
     assert status == 200
 
 
-def test_report_not_yet(site):
+def test_report_html(site):
     srv, _, _ = site
-    status, _body, _ = request(srv, "GET", "/api/report?from=2026-10-01&to=2026-10-07")
-    assert status == 501
+    status, body, headers = request(srv, "GET", "/api/report?from=2026-10-01&to=2026-10-08")
+    assert status == 200
+    assert headers["Content-Type"].startswith("text/html")
+    assert "default-src 'none'" in headers["Content-Security-Policy"]
+    assert (
+        'filename="whodunnet-report-2026-10-01-2026-10-08.html"' in headers["Content-Disposition"]
+    )
+    assert "<h2>1. Summary" in body and "Your WiFi" in body
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "",
+        "?from=2026-10-01",
+        "?from=yesterday&to=2026-10-08",
+        "?from=2026-10-08&to=2026-10-01",
+        "?from=2026-01-01&to=2026-10-08",
+    ],
+)
+def test_report_bad_ranges_are_400(site, query):
+    srv, _, _ = site
+    status, body, _ = request(srv, "GET", "/api/report" + query)
+    assert status == 400 and body["error"]
+
+
+def test_report_is_not_reachable_from_the_lan():
+    phone, lan_host = "192.168.1.50", "Example-Mac.local:8737"
+    assert not access("GET", "/api/report", host=lan_host, ip=phone, cookie=TOKEN).allowed
 
 
 def test_static_pages_and_traversal(site):

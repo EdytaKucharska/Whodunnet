@@ -23,7 +23,7 @@ from typing import Any, Callable
 from urllib.parse import parse_qs, urlsplit
 
 from whodunnet import config
-from whodunnet.core import analysis, store
+from whodunnet.core import analysis, report, store
 from whodunnet.core.models import USER_EVENT_KINDS
 from whodunnet.paths import Paths
 
@@ -40,6 +40,7 @@ HEATMAP_METRICS = ("layer_rate", "loss", "p95", "bufferbloat", "download")
 PHONE_PATHS = {("GET", "/lag"), ("POST", "/api/lag")}
 INVALID_LINK = "This link is invalid"
 DAY_MS = 24 * 3600 * 1000
+REPORT_CSP = "default-src 'none'; style-src 'unsafe-inline'"  # the report has no scripts
 
 
 class ApiError(Exception):
@@ -329,6 +330,20 @@ class Api:
         finally:
             conn.close()
 
+    def report(self, query) -> tuple[str, str]:
+        """(HTML, filename) for inclusive local dates ?from=YYYY-MM-DD&to=YYYY-MM-DD."""
+        date_from, date_to = (query.get(k, [None])[0] for k in ("from", "to"))
+        try:
+            start, end = report.parse_range(date_from, date_to)
+        except ValueError as exc:
+            raise ApiError(400, str(exc)) from None
+        conn = self.read()
+        try:
+            html = report.render(report.build(conn, self.cfg(), start, end))
+        finally:
+            conn.close()
+        return html, report.filename(date_from.strip(), date_to.strip())
+
     def events(self, query) -> list[dict]:
         start, end = _range(query, 10 * 365 * DAY_MS, 30 * DAY_MS)
         conn = self.read()
@@ -513,7 +528,16 @@ class _Handler(BaseHTTPRequestHandler):
             if path in routes:
                 self._json(200, routes[path](query))
             elif path == "/api/report":
-                raise ApiError(501, "the report arrives in a later update (M4)")
+                html, name = api.report(query)
+                self._send(
+                    200,
+                    html.encode(),
+                    "text/html; charset=utf-8",
+                    {
+                        "Content-Security-Policy": REPORT_CSP,
+                        "Content-Disposition": f'inline; filename="{name}"',
+                    },
+                )
             elif path == "/lag":
                 extra = {}
                 if not access.loopback and token:

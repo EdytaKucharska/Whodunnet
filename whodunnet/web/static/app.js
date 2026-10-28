@@ -321,19 +321,37 @@ async function addEvent(evt) {
   }
 }
 
+// The tab is opened before the fetch, while the click still counts as a user gesture (Safari
+// blocks pop-ups opened after an await); the report then loads into it as a blob URL.
 async function makeReport(evt) {
   evt.preventDefault();
   const from = document.getElementById("report-from").value;
   const to = document.getElementById("report-to").value;
-  const url = `/api/report?from=${from}&to=${to}`;
-  const response = await fetch(url);
-  if (response.ok) {
-    window.open(url, "_blank", "noopener");
-    setStatus("report-status", "");
-  } else {
+  if (!from || !to) { setStatus("report-status", "Choose both dates."); return; }
+  const tab = window.open("", "_blank");
+  setStatus("report-status", "Creating the report…");
+  let response;
+  try {
+    response = await fetch(`/api/report?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+  } catch (e) {
+    if (tab) tab.close();
+    setStatus("report-status", "Couldn't reach the collector.");
+    return;
+  }
+  if (!response.ok) {
+    if (tab) tab.close();
     let message = `HTTP ${response.status}`;
     try { message = (await response.json()).error; } catch (e) { /* keep status */ }
     setStatus("report-status", message);
+    return;
+  }
+  const url = URL.createObjectURL(new Blob([await response.text()], { type: "text/html" }));
+  if (tab) {
+    tab.location.href = url;
+    setStatus("report-status", "Opened in a new tab — use Print → Save as PDF to keep a copy.");
+  } else {
+    const link = el("a", { href: url, target: "_blank", text: "Open the report" });
+    document.getElementById("report-status").replaceChildren(link);
   }
 }
 
