@@ -194,7 +194,28 @@ def cmd_run(args) -> int:
     return 0
 
 
-def status_lines(conn: sqlite3.Connection | None, now_ms: int) -> list[str]:
+STATUS_DAYS = 14  # status and the dashboard analyse the last 14 days (spec §6)
+
+
+def verdict_lines(verdict: dict) -> list[str]:
+    q = f" ({verdict['qualifier'].replace('_', ' ')})" if verdict["qualifier"] else ""
+    lines = [
+        f"Verdict: {verdict['verdict'].replace('_', ' ')}{q} — confidence {verdict['confidence']}",
+        f"  {verdict['summary']}",
+    ]
+    if verdict["not_measurable"]:
+        lines.append("  Not measurable: " + ", ".join(verdict["not_measurable"]))
+    for step in verdict["next_steps"]:
+        lines.append(f"  → {step}")
+    if verdict["missing"]:
+        lines.append("Missing:")
+        lines.extend(f"  - {m}" for m in verdict["missing"])
+    return lines
+
+
+def status_lines(
+    conn: sqlite3.Connection | None, now_ms: int, cfg: dict | None = None
+) -> list[str]:
     if conn is None:
         return ["Collector: no data yet. Start it with `python3 -m whodunnet install`."]
     last = conn.execute("SELECT MAX(ts) FROM heartbeat").fetchone()[0]
@@ -208,15 +229,31 @@ def status_lines(conn: sqlite3.Connection | None, now_ms: int) -> list[str]:
     day_ago = now_ms - timeutil.DAY_MS
     beats = conn.execute("SELECT COUNT(*) FROM heartbeat WHERE ts >= ?", (day_ago,)).fetchone()[0]
     uptime = min(100, round(beats * 10_000 * 100 / timeutil.DAY_MS))
-    lines.append(f"Coverage (last 24 h, collector up): {uptime}%")
-    lines.append("Verdict: not available yet (the analysis arrives in a later update).")
+    lines.append(f"Collector up (last 24 h): {uptime}%")
+    from whodunnet.core import analysis
+
+    cfg = cfg if cfg is not None else config.validate({})[0]
+    end = now_ms // 60_000 * 60_000
+    verdict = analysis.analyse(conn, cfg, end - STATUS_DAYS * timeutil.DAY_MS, end)
+    c = verdict["coverage"]
+    lines.append(
+        f"Coverage {c['from']} → {c['to']}: {c['evenings_covered']} covered evenings, "
+        f"{c['evening_coverage_pct']}% of evening time"
+    )
+    lines.extend(verdict_lines(verdict))
     return lines
 
 
 def cmd_status(args) -> int:
-    conn = _readonly(_paths(args))
+    paths = _paths(args)
     try:
-        print("\n".join(status_lines(conn, timeutil.now_ms())))
+        cfg = _load_config(paths)
+    except config.ConfigError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+    conn = _readonly(paths)
+    try:
+        print("\n".join(status_lines(conn, timeutil.now_ms(), cfg)))
     finally:
         if conn is not None:
             conn.close()

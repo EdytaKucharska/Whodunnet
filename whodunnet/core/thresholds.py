@@ -44,3 +44,26 @@ VIDEO_PATH_STREAK = 3  # …or the same CDN bad in this and the previous 2 cover
 WEAK_RSSI_DBM = -70  # WiFi context: weak_signal below this
 LOW_SNR_DB = 20  # WiFi context: low_snr below this
 AF6_MIN_SHARE = 0.5  # verdict uses af 6 if it had |D| ≥ 3 in ≥ this share of covered minutes
+
+# ---- §6.5 findings ---------------------------------------------------------------------------------
+LAYER_SHOWN_RATE = 0.05  # a covered evening/daytime "shows" a layer at ≥ this layer rate
+PROBLEM_MIN_WINDOWS = 3  # evening/all-day problem needs ≥ this many showing evenings (daytimes)
+EVENING_RATIO = 2.0  # evening problem: evening rate ≥ this × daytime rate
+BUFFERBLOAT_MIN_RUNS = 6  # successful nq runs needed for the bufferbloat finding
+BUFFERBLOAT_BAD_SHARE = 0.30  # …with grade D or F on ≥ this share of them
+LAG_WINDOW_MS = 2 * 60_000  # lag marker looks at covered minutes within ± this
+LAG_MIN_KNOWN = 5  # known lag moments needed for lag-based findings
+DEVICE_OK_SHARE = 0.70  # device_or_app: ≥ this share of known moments network-ok
+LAG_BAD_SHARE = 0.50  # lag confirms network: > this share network-bad
+BEFORE_AFTER_MAX = 7  # covered evenings compared on each side of an event
+BEFORE_AFTER_MIN = 2  # …needs at least this many on each side
+
+# ---- §6.6 verdict & confidence ------------------------------------------------------------------------
+HIGH_MIN_EVENINGS = 7
+HIGH_SHOWN_SHARE = 0.70
+MEDIUM_SHOWN_SHARE = 0.50
+BUFFERBLOAT_HIGH_RUNS = 20
+DEVICE_HIGH_KNOWN = 10
+EVENING_COVERAGE_TARGET_PCT = 80  # below this, `missing` asks to keep the Mac awake
+INCONCLUSIVE_MISSING_SHARE = 0.10  # more inconclusive minutes than this → a `missing` line
+NOT_MEASURABLE_BLOCKED_SHARE = 0.50  # gateway blocked in > this share of evening minutes
