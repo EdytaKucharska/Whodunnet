@@ -319,3 +319,48 @@ def test_collector_hook_starts_and_stop_stops(tmp_path):
         srv = c.web
         c.stop()
     assert c.web is None and srv.httpd is None
+
+
+def test_static_files_load_nothing_external():
+    # Spec §7.1: the dashboard works offline and never contacts third parties.
+    import re
+    from pathlib import Path
+
+    static = Path(web.__file__).parent / "static"
+    pattern = re.compile(r"(https?:)?//[a-z0-9.-]+\.[a-z]{2,}", re.IGNORECASE)
+    for f in static.iterdir():
+        text = f.read_text(encoding="utf-8")
+        text = text.replace("http://www.w3.org/2000/svg", "")
+        assert not pattern.search(text), f.name
+
+
+def test_bucket_rollups_sums_and_maxes():
+    from whodunnet.core.models import RollupRow
+
+    def row(minute, target, sent, lost, p50, p95, jitter):
+        return RollupRow(minute, target, sent, lost, p50, p95, None, jitter, None, 0)
+
+    step = web.TIMELINE_LONG_STEP_MS
+    rows = [
+        row(0, 1, 60, 1, 10.0, 20.0, 1.0),
+        row(60_000, 1, 60, 2, 20.0, 50.0, 3.0),
+        row(60_000, 2, 60, 0, None, None, None),
+        row(step, 1, 30, 0, 5.0, 8.0, 0.5),
+    ]
+    out = web.bucket_rollups(rows, step)
+    assert out["1"] == [[0, 120, 3, 15.0, 50.0, 2.0], [step, 30, 0, 5.0, 8.0, 0.5]]
+    assert out["2"] == [[0, 60, 0, None, None, None]]
+
+
+def test_bucket_layers_keeps_the_most_severe():
+    from whodunnet.core.attribution import MinuteResult
+
+    step = web.TIMELINE_LONG_STEP_MS
+    results = [
+        MinuteResult(0, 4, "ok"),
+        MinuteResult(60_000, 4, "isp_upstream"),
+        MinuteResult(120_000, 4, "inconclusive"),
+        MinuteResult(step, 4, "ok"),
+        MinuteResult(step + 60_000, 4, "inconclusive"),
+    ]
+    assert web.bucket_layers(results, step) == [[0, "isp_upstream"], [step, "inconclusive"]]

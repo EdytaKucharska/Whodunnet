@@ -134,6 +134,52 @@ def _range(query, max_ms: int, default_ms: int) -> tuple[int, int]:
     return start, end
 
 
+TIMELINE_LONG_STEP_MS = 5 * 60_000  # ranges over a day are bucketed (keeps 7 days < 1 MB)
+LAYER_SEVERITY = (
+    "ok",
+    "inconclusive",
+    "video_path",
+    "isp_upstream",
+    "isp_network",
+    "home_network",
+    "wifi",
+)
+
+
+def bucket_rollups(rows, step: int) -> dict[str, list]:
+    """[[bucket, sent, lost, p50 (mean), p95 (max), jitter (mean)], …] per target."""
+    buckets: dict[tuple[int, int], list] = {}
+    for r in rows:
+        key = (r.target_id, r.minute // step * step)
+        buckets.setdefault(key, []).append(r)
+    out: dict[str, list] = {}
+    for (target_id, start), group in sorted(buckets.items()):
+        p50s = [g.p50_ms for g in group if g.p50_ms is not None]
+        p95s = [g.p95_ms for g in group if g.p95_ms is not None]
+        jitters = [g.jitter_ms for g in group if g.jitter_ms is not None]
+        out.setdefault(str(target_id), []).append(
+            [
+                start,
+                sum(g.sent for g in group),
+                sum(g.lost for g in group),
+                round(sum(p50s) / len(p50s), 2) if p50s else None,
+                max(p95s) if p95s else None,
+                round(sum(jitters) / len(jitters), 2) if jitters else None,
+            ]
+        )
+    return out
+
+
+def bucket_layers(results, step: int) -> list[list]:
+    """[[bucket, layer], …]; a bucket shows its most severe layer (any problem beats ok)."""
+    worst: dict[int, str] = {}
+    for r in results:
+        key = r.minute // step * step
+        if key not in worst or LAYER_SEVERITY.index(r.layer) > LAYER_SEVERITY.index(worst[key]):
+            worst[key] = r.layer
+    return [[k, worst[k]] for k in sorted(worst)]
+
+
 class Api:
     """Endpoint implementations. Each takes parsed inputs and returns a JSON-able value."""
 
@@ -189,11 +235,8 @@ class Api:
         conn = self.read()
         try:
             cov, af, results = analysis.minute_layers(conn, self.cfg(), start, end)
-            rollups: dict[str, list] = {}
-            for r in store.read_rollups(conn, start, end):
-                rollups.setdefault(str(r.target_id), []).append(
-                    [r.minute, r.sent, r.lost, r.p50_ms, r.p95_ms, r.jitter_ms]
-                )
+            step = 60_000 if end - start <= DAY_MS else TIMELINE_LONG_STEP_MS
+            rollups = bucket_rollups(store.read_rollups(conn, start, end), step)
             wifi = [
                 [r["ts"], r["rssi_dbm"], r["band"], r["channel"]]
                 for r in store.read_raw(conn, "wifi", start, end)
@@ -224,7 +267,8 @@ class Api:
             "address_family": af,
             "targets": targets,
             "rollups": rollups,
-            "layers": [[r.minute, r.layer] for r in results.get(af, [])],
+            "step": step,
+            "layers": bucket_layers(results.get(af, []), step),
             "wifi": wifi,
             "events": events,
             "gaps": [[a, b] for a, b in cov.gaps() if b > start],

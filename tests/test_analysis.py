@@ -235,6 +235,8 @@ def test_before_after_event_evidence(conn):
     (ba,) = [e for e in v["evidence"] if e["metric"] == "before_after"]
     assert ba["rates"]["isp_upstream"]["before"] > 0.9
     assert ba["rates"]["isp_upstream"]["after"] == 0
+    assert ba["claim"].startswith("After the router change on 2026-10-05, beyond-ISP bad minutes")
+    assert ba["claim"].endswith("→ 0%.")
 
 
 def test_approximate_cdn_is_missing_line(conn):
