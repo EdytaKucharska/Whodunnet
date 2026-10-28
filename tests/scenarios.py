@@ -387,8 +387,9 @@ def isp_edge_always_lossy(conn):
 
 
 def single_flaky_cdn(conn):
+    """One CDN bad in isolated evening minutes (never 3 in a row, never with another CDN)."""
     s = new(conn, days=8)
-    s.bad_when(is_evening, is_named("instagram"))
+    s.bad_when(lambda m: is_evening(m) and (m // MIN) % 3 == 0, is_named("instagram"))
     s.expected = {"verdict": "no_problem_found"}
     return s.build()
 
