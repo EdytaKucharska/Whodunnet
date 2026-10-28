@@ -350,9 +350,32 @@ async function showSettings() {
   link.textContent = s.lan_access
     ? (s.phone_url ? `Open this link on your phone (same WiFi): ${s.phone_url}` : "The phone link appears once the collector knows this Mac's name.")
     : "Turn this on to get a link for your phone.";
+  const setup = document.getElementById("phone-setup");
+  setup.hidden = !(s.lan_access && s.phone_url);
+  if (!setup.hidden) document.getElementById("phone-qr").replaceChildren(qrSvg(s.phone_url));
   document.getElementById("doctor-list").replaceChildren(...(s.doctor.length ? s.doctor.map((d) =>
     el("li", { class: `status-${d.status}` }, d.message, d.fix && (d.status === "warn" || d.status === "fail") ? el("span", { class: "fix", text: d.fix }) : null))
     : [el("li", { class: "muted", text: "The collector hasn't run its checks yet." })]));
+}
+
+// The QR code is drawn as dark squares on a white quiet zone so phone cameras read it in dark mode.
+function qrSvg(text) {
+  const code = qrcode(0, "M");
+  code.addData(text);
+  code.make();
+  const n = code.getModuleCount();
+  const quiet = 4;
+  const size = n + 2 * quiet;
+  const root = svg("svg", { viewBox: `0 0 ${size} ${size}`, "shape-rendering": "crispEdges" });
+  root.append(svg("rect", { width: size, height: size, fill: "#fff" }));
+  let path = "";
+  for (let row = 0; row < n; row++) {
+    for (let col = 0; col < n; col++) {
+      if (code.isDark(row, col)) path += `M${col + quiet} ${row + quiet}h1v1h-1z`;
+    }
+  }
+  root.append(svg("path", { d: path, fill: "#000" }));
+  return root;
 }
 
 async function updateSettings(body) {

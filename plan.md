@@ -202,7 +202,7 @@ Format: **ID — title** · *depends on* — what · ✅ acceptance · 🧪 test
 
 **M3.3 — Phone lag page & LAN access** · *M3.1* — `lag.html`; token/cookie flow exactly per spec §7.1 (cookie value = token, `Max-Age` 1 year, no redirect); Settings toggles `lan_access` (writes config, rebinds server), shows `http://<LocalHostName>.local:<port>/lag?t=…` + QR (`qr.js`, vendored MIT) + "Add to Home Screen" steps; regenerate token.
 - ✅ From an iPhone on the same WiFi: open link → tap → `lag` event (source `phone`) appears on the Mac timeline within 5 s. With `lan_access=false` the phone can't connect; with a wrong token → 403.
-- 🧪 token required / wrong / right; cookie set; regenerated token invalidates old cookie; only `/lag` + `POST /api/lag` reachable from non-loopback.
+- 🧪 token required / wrong / right; cookie set; regenerated token invalidates old cookie; only `/lag` + `POST /api/lag` reachable from non-loopback. Note: the token/cookie flow, toggle and regenerate shipped in M3.1; M3.3 adds the QR (qrcode-generator 1.4.4 vendored as `static/qr.js`, a test pins its sha256; the dashboard draws the modules as SVG on a white quiet zone so it scans in dark mode) and the Add to Home Screen steps. A browser check decoded the drawn QR back to the phone link.
 
 **M3.4 — CLI `dashboard`** · *M3.1* — opens the browser (spec §9).
 
