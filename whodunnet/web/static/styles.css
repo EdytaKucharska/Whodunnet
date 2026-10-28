@@ -87,3 +87,7 @@ table.compare td.num { text-align: right; font-variant-numeric: tabular-nums; }
   label { margin-right: .5rem; }
 }
 #phone-link { overflow-wrap: anywhere; }
+.qr { width: 12rem; max-width: 100%; margin: .5rem 0; }
+.qr svg { display: block; width: 100%; height: auto; border-radius: 8px; }
+.steps { padding-left: 1.4rem; }
+.steps li { margin: .25rem 0; }

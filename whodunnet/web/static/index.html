@@ -116,6 +116,16 @@
       <label class="switch"><input id="lan-access" type="checkbox">
         Allow my phone on this WiFi to mark lag moments</label>
       <p id="phone-link" class="muted"></p>
+      <div id="phone-setup" hidden>
+        <div id="phone-qr" class="qr" role="img" aria-label="QR code for the phone link"></div>
+        <ol class="steps">
+          <li>On your iPhone, open the Camera and point it at this code (or type the link into Safari).</li>
+          <li>Tap the link that appears. The "It's lagging now" page opens in Safari.</li>
+          <li>Tap the Share button, then "Add to Home Screen", then "Add".</li>
+          <li>Next time the TV or a call lags, tap the new icon on your home screen and press the button.</li>
+        </ol>
+        <p class="muted">The phone must be on the same WiFi as this Mac, and the Mac must be awake.</p>
+      </div>
       <button id="regenerate-token" type="button" class="secondary">New link (old links stop working)</button>
       <span id="settings-status" class="muted" role="status"></span>
     </div>
@@ -126,6 +136,7 @@
   </section>
 </main>
 
+<script src="/qr.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>

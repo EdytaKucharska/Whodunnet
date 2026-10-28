@@ -329,9 +329,23 @@ def test_static_files_load_nothing_external():
     static = Path(web.__file__).parent / "static"
     pattern = re.compile(r"(https?:)?//[a-z0-9.-]+\.[a-z]{2,}", re.IGNORECASE)
     for f in static.iterdir():
-        text = f.read_text(encoding="utf-8")
+        # URLs in JS comments (the vendored QR library's credits) are never fetched.
+        lines = f.read_text(encoding="utf-8").splitlines()
+        text = "\n".join(line for line in lines if not line.lstrip().startswith("//"))
         text = text.replace("http://www.w3.org/2000/svg", "")
         assert not pattern.search(text), f.name
+
+
+def test_vendored_qr_library_is_unmodified():
+    import hashlib
+    import re
+    from pathlib import Path
+
+    text = (Path(web.__file__).parent / "static" / "qr.js").read_text(encoding="utf-8")
+    header, body = text.split("\n\n", 1)
+    (expected,) = re.findall(r"sha256 ([0-9a-f]{64})", header)
+    assert hashlib.sha256(body.encode("utf-8")).hexdigest() == expected
+    assert "MIT License" in header
 
 
 def test_bucket_rollups_sums_and_maxes():
