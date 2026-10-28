@@ -96,7 +96,7 @@ def list_targets(conn: sqlite3.Connection, active_only: bool = False) -> list[Ta
     return [_row_to_target(r) for r in conn.execute(sql)]
 
 
-def _same_network(old_ip: str, new_ip: str) -> bool:
+def same_network(old_ip: str, new_ip: str) -> bool:
     """True if both IPs are in the same /24 (IPv4) or /48 (IPv6) — spec §4.1 sticky IPs."""
     a, b = ipaddress.ip_address(old_ip), ipaddress.ip_address(new_ip)
     if a.version != b.version:
@@ -159,7 +159,7 @@ def switch_target_ip(conn: sqlite3.Connection, target_id: int, new_ip: str, now_
         raise KeyError(target_id)
     if target.ip == new_ip:
         return False
-    reset = target.ip is None or not _same_network(target.ip, new_ip)
+    reset = target.ip is None or not same_network(target.ip, new_ip)
     with conn:
         conn.execute(
             "INSERT INTO target_ips (target_id, ip, from_ts) VALUES (?, ?, ?)",
