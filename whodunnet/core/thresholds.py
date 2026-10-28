@@ -29,3 +29,18 @@ BASELINE_LOOKBACK_DAYS = 7  # look-back ending at the end of the day being judge
 BASELINE_HOUR_MIN_COVERED = 45  # covered minutes (with a row for the target) for a candidate hour
 BASELINE_MIN_HOURS = 4  # fewer chosen hours → no baseline that day
 BASELINE_FALLBACK_SHARE = 0.25  # quiet window too thin → this share of the calmest candidate hours
+
+# ---- §6.3 bad minute _(initial)_ ------------------------------------------------------------------
+BAD_LOST_PINGS = 2  # ≥ this many lost pings in a minute (one isolated loss is background noise)
+EDGE_LOST_MARGIN = 2  # ISP edge: lost ≥ its baseline-hours median lost per minute + this
+BAD_P95_MARGIN_MS = 40.0  # p95 > baseline + this
+BAD_JITTER_MARGIN_MS = 15.0  # jitter > baseline jitter + this
+
+# ---- §6.4 attribution ----------------------------------------------------------------------------
+MIN_DOWNSTREAM = 3  # |D| below this → inconclusive
+MAJORITY_MIN_BAD = 2  # "majority of X bad" also needs at least this many bad
+VIDEO_PATH_MIN_CDNS = 2  # ≥ this many CDNs bad at once → video_path
+VIDEO_PATH_STREAK = 3  # …or the same CDN bad in this and the previous 2 covered minutes
+WEAK_RSSI_DBM = -70  # WiFi context: weak_signal below this
+LOW_SNR_DB = 20  # WiFi context: low_snr below this
+AF6_MIN_SHARE = 0.5  # verdict uses af 6 if it had |D| ≥ 3 in ≥ this share of covered minutes

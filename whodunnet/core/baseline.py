@@ -116,6 +116,7 @@ class Baselines:
         self._cov = cov
         self._values = values
         self._epochs = {t: epoch_starts(cov, t) for t in cov.targets}
+        self._days: dict[int, int] = {}  # minute -> local midnight (localtime is slow)
 
     def epoch_of(self, target_id: int, minute: int) -> int:
         starts = self._epochs.get(target_id) or [self._cov.start]
@@ -126,7 +127,10 @@ class Baselines:
         return current
 
     def get(self, target_id: int, minute: int) -> Baseline | None:
-        key = (target_id, local_midnight(minute), self.epoch_of(target_id, minute))
+        day = self._days.get(minute)
+        if day is None:
+            day = self._days[minute] = local_midnight(minute)
+        key = (target_id, day, self.epoch_of(target_id, minute))
         return self._values.get(key)
 
     def items(self):
