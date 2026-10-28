@@ -62,13 +62,41 @@ NEXT_STEPS = {
     ],
     "insufficient_data": ['Follow the "missing" list.'],
 }
+# Where the problem is, with its preposition: "Evenings are worse <LAYER_WORDS[layer]>".
 LAYER_WORDS = {
-    "wifi": "the WiFi between this Mac and your router",
-    "home_network": "your home network (cable, adapter, switch or mesh)",
-    "isp_network": "your ISP's own network",
+    "wifi": "on the WiFi between this Mac and your router",
+    "home_network": "in your home network (cable, adapter, switch or mesh)",
+    "isp_network": "inside your ISP's own network",
     "isp_upstream": "beyond your ISP's network (their links to the wider internet)",
-    "video_path": "the route to the video services",
+    "video_path": "on the route to the video services",
 }
+LAYER_NAMES = {
+    "wifi": "WiFi",
+    "home_network": "home network",
+    "isp_network": "ISP network",
+    "isp_upstream": "beyond-ISP",
+    "video_path": "video-service",
+}
+EVENT_NAMES = {
+    "router_change": "router change",
+    "package_change": "package change",
+    "isp_contact": "ISP contact",
+}
+
+
+def _change_claim(change: dict) -> str:
+    """'After the router change on 2026-10-03, WiFi evening bad minutes went 40% → 2%.'"""
+    rates = change["rates"]
+    layer = max(rates, key=lambda k: abs(rates[k]["after"] - rates[k]["before"]))
+    day = time.strftime("%Y-%m-%d", time.localtime(change["ts"] / 1000))
+    before, after = rates[layer]["before"], rates[layer]["after"]
+    name = EVENT_NAMES.get(change["event"], change["event"])
+    if before == after:
+        return f"The {name} on {day} made no difference to evening bad minutes."
+    return (
+        f"After the {name} on {day}, {LAYER_NAMES[layer]} bad minutes in the evening went "
+        f"{_pct(before)} → {_pct(after)}."
+    )
 
 
 # ---- windows ----------------------------------------------------------------------------------
@@ -447,7 +475,7 @@ def analyse(conn: sqlite3.Connection, cfg: dict, start_ms: int, end_ms: int) -> 
         evidence.append(
             {
                 "claim": (
-                    f"{_pct(chosen.evening_rate)} of evening minutes ({ev_span}) were bad in "
+                    f"{_pct(chosen.evening_rate)} of evening minutes ({ev_span}) were bad "
                     f"{LAYER_WORDS[chosen.layer]}, vs {_pct(chosen.daytime_rate)} in the daytime "
                     f"({dt_span})."
                 ),
@@ -460,12 +488,12 @@ def analyse(conn: sqlite3.Connection, cfg: dict, start_ms: int, end_ms: int) -> 
         )
         when = "Evenings are" if qualifier == "evening" else "All day it is"
         summary = (
-            f"{when} worse in {LAYER_WORDS[chosen.layer]}: {_pct(chosen.evening_rate)} bad "
+            f"{when} worse {LAYER_WORDS[chosen.layer]}: {_pct(chosen.evening_rate)} bad "
             f"minutes {ev_span} vs {_pct(chosen.daytime_rate)} in the daytime."
         )
     elif qualifier == "at_lag_moments":
         summary = (
-            f"Short slowdowns in {LAYER_WORDS[lag_layer]} matched {f.lag['network_bad']} of the "
+            f"Short slowdowns {LAYER_WORDS[lag_layer]} matched {f.lag['network_bad']} of the "
             f"{f.lag['known']} lag moments you marked."
         )
     elif verdict == "bufferbloat":
@@ -499,9 +527,7 @@ def analyse(conn: sqlite3.Connection, cfg: dict, start_ms: int, end_ms: int) -> 
         "lag_points_to_device": "At most lag moments the network looked healthy.",
     }
     evidence.extend({"claim": notes_text[n], "metric": n} for n in notes if n in notes_text)
-    evidence.extend(
-        {"claim": f"Before/after {c['event']}", "metric": "before_after", **c} for c in f.changes
-    )
+    evidence.extend({"claim": _change_claim(c), "metric": "before_after", **c} for c in f.changes)
 
     secondary = [
         {

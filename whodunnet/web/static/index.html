@@ -4,43 +4,128 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Whodunnet</title>
-<style>
-  :root { color-scheme: light dark; font-family: -apple-system, system-ui, sans-serif; }
-  body { margin: 0 auto; max-width: 40rem; padding: 1.5rem 1rem; line-height: 1.5; }
-  .card { border: 1px solid #8884; border-radius: 12px; padding: 1rem 1.25rem; }
-  button { font-size: 1.1rem; padding: .7rem 1.2rem; border-radius: 10px; border: 0;
-           background: #d33; color: #fff; }
-  pre { white-space: pre-wrap; font-size: .85rem; }
-</style>
+<link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-<h1>Whodunnet</h1>
-<p>The full dashboard arrives in the next update. Until then, here is the current verdict.</p>
-<div class="card" id="verdict">Loading…</div>
-<p><button id="lag">It's lagging now</button> <span id="lag-done"></span></p>
-<script>
-async function api(path, options) {
-  const r = await fetch(path, options);
-  return r.json();
-}
-api("/api/verdict").then(v => {
-  const el = document.getElementById("verdict");
-  if (v.error) { el.textContent = v.error; return; }
-  el.innerHTML = "";
-  const h = document.createElement("h2");
-  h.textContent = v.verdict.replace(/_/g, " ") + (v.qualifier ? " (" + v.qualifier.replace(/_/g, " ") + ")" : "")
-    + " — confidence " + v.confidence;
-  const p = document.createElement("p");
-  p.textContent = v.summary;
-  const pre = document.createElement("pre");
-  pre.textContent = "Next steps:\n- " + v.next_steps.join("\n- ")
-    + (v.missing.length ? "\n\nMissing:\n- " + v.missing.join("\n- ") : "");
-  el.append(h, p, pre);
-});
-document.getElementById("lag").onclick = async () => {
-  await api("/api/lag", {method: "POST", headers: {"X-Whodunnet": "1", "Content-Type": "application/json"}, body: "{}"});
-  document.getElementById("lag-done").textContent = "Recorded ✓";
-};
-</script>
+<header>
+  <h1>Whodunnet</h1>
+  <nav id="tabs">
+    <a href="#verdict">Verdict</a>
+    <a href="#timeline">Timeline</a>
+    <a href="#heatmap">Heatmap</a>
+    <a href="#compare">Evening vs daytime</a>
+    <a href="#events">Events</a>
+    <a href="#report">Report</a>
+    <a href="#settings">Settings</a>
+  </nav>
+</header>
+
+<main>
+  <section id="view-verdict" class="view">
+    <div class="card" id="verdict-card"><p class="muted">Loading…</p></div>
+    <div class="lag-row">
+      <button id="lag-button" class="lag">It's lagging now</button>
+      <span id="lag-status" class="muted" role="status"></span>
+    </div>
+    <div class="card" id="coverage-card"></div>
+  </section>
+
+  <section id="view-timeline" class="view" hidden>
+    <div class="controls">
+      <label>Range
+        <select id="timeline-range">
+          <option value="1">Last 24 hours</option>
+          <option value="7">Last 7 days</option>
+        </select>
+      </label>
+      <label>Targets
+        <select id="timeline-kind">
+          <option value="all">All</option>
+          <option value="gateway">Router</option>
+          <option value="isp_edge">ISP edge</option>
+          <option value="anchor">Reference servers</option>
+          <option value="cdn">Video servers</option>
+        </select>
+      </label>
+    </div>
+    <div id="timeline-chart" class="chart"></div>
+    <div id="timeline-legend" class="legend"></div>
+  </section>
+
+  <section id="view-heatmap" class="view" hidden>
+    <div class="controls">
+      <label>Metric
+        <select id="heatmap-metric">
+          <option value="layer_rate">Share of bad minutes</option>
+          <option value="loss">Packet loss</option>
+          <option value="p95">p95 latency (ms)</option>
+          <option value="bufferbloat">Bufferbloat (ms)</option>
+          <option value="download">Download (Mbps)</option>
+        </select>
+      </label>
+      <label>Days
+        <select id="heatmap-days">
+          <option value="7">7</option>
+          <option value="14" selected>14</option>
+          <option value="31">31</option>
+        </select>
+      </label>
+    </div>
+    <div id="heatmap-grid" class="heatmap"></div>
+  </section>
+
+  <section id="view-compare" class="view" hidden>
+    <p class="muted">The numbers behind the verdict: for each part of the connection, the share of
+      bad minutes in the evening and in the daytime, over the last 14 days.</p>
+    <div id="compare-tables"></div>
+  </section>
+
+  <section id="view-events" class="view" hidden>
+    <form id="event-form" class="card">
+      <h2>Add an event</h2>
+      <label>What happened
+        <select id="event-kind">
+          <option value="router_change">Router change</option>
+          <option value="package_change">Package change</option>
+          <option value="isp_contact">ISP contact</option>
+          <option value="other">Note</option>
+        </select>
+      </label>
+      <label>Note <input id="event-note" maxlength="500" placeholder="e.g. new router fitted"></label>
+      <label>When <input id="event-when" type="datetime-local"></label>
+      <button type="submit">Add</button>
+      <span id="event-status" class="muted" role="status"></span>
+    </form>
+    <ul id="event-list" class="events"></ul>
+  </section>
+
+  <section id="view-report" class="view" hidden>
+    <form id="report-form" class="card">
+      <h2>Evidence report</h2>
+      <p class="muted">A one-page report for your ISP, covering the dates you choose.</p>
+      <label>From <input id="report-from" type="date" required></label>
+      <label>To <input id="report-to" type="date" required></label>
+      <button type="submit">Create report</button>
+      <span id="report-status" class="muted" role="status"></span>
+    </form>
+  </section>
+
+  <section id="view-settings" class="view" hidden>
+    <div class="card">
+      <h2>Phone "lagging now" button</h2>
+      <label class="switch"><input id="lan-access" type="checkbox">
+        Allow my phone on this WiFi to mark lag moments</label>
+      <p id="phone-link" class="muted"></p>
+      <button id="regenerate-token" type="button" class="secondary">New link (old links stop working)</button>
+      <span id="settings-status" class="muted" role="status"></span>
+    </div>
+    <div class="card">
+      <h2>Setup check</h2>
+      <ul id="doctor-list" class="doctor"></ul>
+    </div>
+  </section>
+</main>
+
+<script src="/app.js"></script>
 </body>
 </html>
