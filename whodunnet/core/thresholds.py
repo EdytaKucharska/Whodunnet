@@ -52,6 +52,7 @@ EVENING_RATIO = 2.0  # evening problem: evening rate ≥ this × daytime rate
 BUFFERBLOAT_MIN_RUNS = 6  # successful nq runs needed for the bufferbloat finding
 BUFFERBLOAT_BAD_SHARE = 0.30  # …with grade D or F on ≥ this share of them
 LAG_WINDOW_MS = 2 * 60_000  # lag marker looks at covered minutes within ± this
+LAG_MERGE_MS = 2 * 60_000  # presses within this of a moment's first press are the same moment
 LAG_MIN_KNOWN = 5  # known lag moments needed for lag-based findings
 DEVICE_OK_SHARE = 0.70  # device_or_app: ≥ this share of known moments network-ok
 LAG_BAD_SHARE = 0.50  # lag confirms network: > this share network-bad

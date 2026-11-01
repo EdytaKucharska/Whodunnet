@@ -128,11 +128,16 @@ async function showVerdict() {
 }
 
 async function markLag() {
+  const button = document.getElementById("lag-button");
+  if (button.disabled) return;
+  button.disabled = true;  // no duplicate presses while the request is in flight
   try {
     await api("/api/lag", { method: "POST", body: "{}" });
     setStatus("lag-status", `Recorded at ${new Date().toLocaleTimeString()} ✓`);
   } catch (e) {
     setStatus("lag-status", `Couldn't record: ${e.message}`);
+  } finally {
+    button.disabled = false;
   }
 }
 

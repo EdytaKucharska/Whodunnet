@@ -219,6 +219,37 @@ def test_lag_moments_with_no_data_are_unknown(conn):
     assert "1 lag moments fell in periods with no data" in v["missing"]
 
 
+def test_repeated_lag_presses_are_one_moment(conn):
+    s = sc.new(conn, days=4)
+    first = sc.local_ms(2026, 10, 2, 9, 39)
+    for offset_ms in (0, 23_000, 23_900, 24_100, 24_300):  # one burst of taps on the phone
+        s.add_lag(first + offset_ms)
+    s.add_lag(first + 3 * sc.MIN)  # a separate moment
+    v = analyse(conn, s.build())
+    assert v["lag"]["known"] == 2
+
+
+def test_a_burst_of_presses_does_not_blame_the_device(conn):
+    s = sc.new(conn, days=4)
+    first = sc.local_ms(2026, 10, 2, 12, 0)
+    for k in range(th.LAG_MIN_KNOWN):
+        s.add_lag(first + k * 500)
+    v = analyse(conn, s.build())
+    assert v["lag"]["known"] == 1
+    assert v["verdict"] != "device_or_app"
+    assert not any(x["finding"] == "device_or_app" for x in v["secondary"])
+
+
+def test_evening_coverage_ignores_evenings_before_collection_started(conn):
+    s = sc.new(conn, days=4)
+    s.gaps = [(sc.local_ms(2026, 10, 2, 19, 0), sc.local_ms(2026, 10, 2, 23, 0))]
+    s = s.build()
+    exact = analysis.analyse(conn, CFG, s.start, s.end)["coverage"]["evening_coverage_pct"]
+    earlier = analysis.analyse(conn, CFG, s.start - 10 * sc.DAY, s.end)
+    assert earlier["coverage"]["evening_coverage_pct"] == exact
+    assert 50 < exact < 100
+
+
 def test_insufficient_data_missing_lines(conn):
     s = sc.insufficient_data(conn)
     v = analyse(conn, s)

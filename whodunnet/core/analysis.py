@@ -219,12 +219,17 @@ def bufferbloat_finding(conn: sqlite3.Connection, start: int, end: int) -> dict 
 def lag_moments(
     conn: sqlite3.Connection, by_minute: dict[int, MinuteResult], start: int, end: int
 ) -> list[tuple[int, str, list[str]]]:
-    """[(ts, network_bad | network_ok | unknown, bad layers within ± LAG_WINDOW_MS)]."""
+    """[(ts, network_bad | network_ok | unknown, bad layers within ± LAG_WINDOW_MS)].
+
+    Presses within LAG_MERGE_MS of a moment's first press (repeated taps, phone and dashboard
+    together) are one moment, timed at its first press."""
     out = []
     events = conn.execute(
         "SELECT ts FROM events WHERE kind = 'lag' AND ts >= ? AND ts < ? ORDER BY ts", (start, end)
     ).fetchall()
     for (ts,) in events:
+        if out and ts - out[-1][0] < th.LAG_MERGE_MS:
+            continue
         lo, hi = ts - th.LAG_WINDOW_MS, ts + th.LAG_WINDOW_MS
         first = lo // MINUTE_MS * MINUTE_MS
         near = [by_minute[m] for m in range(first, hi + 1, MINUTE_MS) if m in by_minute]
@@ -344,6 +349,7 @@ class Facts:
     gateway_baseline: bool
     gateway_ever_blocked: bool
     not_measurable: list[str]
+    first_data: int | None  # first heartbeat ever; evening time before it isn't a coverage gap
 
     @property
     def covered_evenings(self) -> list[Window]:
@@ -385,6 +391,7 @@ def facts(conn: sqlite3.Connection, cfg: dict, start: int, end: int) -> Facts:
         gateway_baseline=gateway_baseline,
         gateway_ever_blocked=any(start <= m < end for m in cov.blocked),
         not_measurable=not_measurable,
+        first_data=conn.execute("SELECT MIN(ts) FROM heartbeat").fetchone()[0],
     )
 
 
@@ -439,7 +446,8 @@ def _missing(f: Facts, verdict: str, chosen: LayerFinding | None, notes: list[st
         missing.append(f"Need {goal - n_ev} more covered evenings")
     if f.lag["known"] < th.LAG_MIN_KNOWN:
         missing.append("Mark lag moments with the 'It's lagging now' button")
-    all_minutes = [m for w in f.evenings for m in w.minutes]
+    since = f.first_data // MINUTE_MS * MINUTE_MS if f.first_data is not None else None
+    all_minutes = [m for w in f.evenings for m in w.minutes if since is None or m >= since]
     pct = (
         round(100 * sum(1 for m in all_minutes if f.cov.covered(m)) / len(all_minutes))
         if all_minutes
