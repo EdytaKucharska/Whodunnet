@@ -20,14 +20,20 @@
   <p id="done"></p>
 </main>
 <script>
-document.getElementById("lag").onclick = async () => {
+document.getElementById("lag").onclick = async (event) => {
+  const button = event.currentTarget;
   const done = document.getElementById("done");
+  if (button.disabled) return;
+  button.disabled = true;  // one press per tap: no duplicates while the request is in flight
+  done.textContent = "Recording…";
   try {
     const r = await fetch("/api/lag", {method: "POST", credentials: "same-origin",
       headers: {"X-Whodunnet": "1", "Content-Type": "application/json"}, body: "{}"});
     done.textContent = r.ok ? "Recorded ✓ — thanks!" : "This link is invalid";
   } catch (e) {
     done.textContent = "Couldn't reach the Mac — is it awake and on the same WiFi?";
+  } finally {
+    button.disabled = false;
   }
 };
 </script>

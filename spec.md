@@ -297,7 +297,7 @@ Pure functions. Entry point: `analyse(conn, cfg, start_ms, end_ms) -> Verdict` (
   - **Target unresponsive** — a downstream or ISP-edge target with > 50% loss across its first 10 rolled-up minutes after `first_seen` (or after an IP switch) while the gateway lost < 2 pings in those minutes → excluded from analysis until its IP changes.
   - Discovery status (`ok`/`approximate`/`unavailable`) at a minute = latest `target_status` row at or before it.
 - A window (an evening, a daytime, an hour) is **covered** if ≥ 50% of its minutes are covered.
-- **Denominators:** coverage percentages use all minutes of the window. **Layer rates** use covered, non-`inconclusive` minutes of the evaluated address family.
+- **Denominators:** coverage percentages use all minutes of the window from the first heartbeat ever on (time before Whodunnet first ran is not a gap). **Layer rates** use covered, non-`inconclusive` minutes of the evaluated address family.
 
 ### 6.2 Baseline (`baseline.py`) — computed inside `analyse`, nothing stored
 
@@ -356,7 +356,7 @@ Rows 1–2 are skipped while the gateway is unknown; rows 3 and 7 while the ISP 
 
 **Bufferbloat under load:** ≥ **6** successful nq runs in range, and grade **D or F** on ≥ **30%** of them. Labelled "bufferbloat under load (home router, WiFi or ISP shaper)"; if the bad runs were on `link = wired`, "(home router or ISP shaper)". Median `bufferbloat_ms` and the grade distribution are evidence.
 
-**Lag markers:** for each `lag` event, look at the covered minutes in `[t − 2 min, t + 2 min]`:
+**Lag markers:** `lag` events within **2 min** of a moment's first press are one **lag moment**, timed at that first press (repeated taps, phone and dashboard together); the events themselves are kept. For each moment, look at the covered minutes in `[t − 2 min, t + 2 min]`:
 - **network-bad** — any of them has a layer other than `ok`/`inconclusive`;
 - **network-ok** — none is bad and at least one is `ok`;
 - **unknown** — none covered, or all covered ones `inconclusive` (counted in `missing`).
@@ -627,6 +627,8 @@ Native macOS app, native iPhone app (the v0 phone lag marker is a web page), plu
 | 2026-10-27 | WiFi readout every **5 min** (was 60 s) and pings around it dropped. | Real capture: `system_profiler` takes ~11 s and triples router-ping spikes (plan §8). |
 | 2026-10-27 | YouTube target is the redirector (`approximate`) in v0; `report_mapping` POP name recorded. | `report_mapping` returns a POP name, not a cache host; conversion unverified. |
 | 2026-10-27 | nq data-use estimate ~4.6 GB/day. | Measured 0.57 GB per run on the origin connection. |
+| 2026-11-01 | Evening coverage % counts only time since the first heartbeat. | Real install: 12 pre-install evenings in the 14-day window showed 9% coverage (63% since install) and kept "keep the Mac awake" up for ~2 weeks. |
+| 2026-11-01 | Lag presses within 2 min are one lag moment; lag buttons disable while recording. | Real use: one incident on the phone stored 4 events, one tap short of a `device_or_app` finding. |
 
 ## 16. Glossary
 
