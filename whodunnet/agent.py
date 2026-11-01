@@ -9,6 +9,7 @@ import os
 import secrets
 import shutil
 import sys
+import time
 from collections.abc import Callable
 from pathlib import Path
 from string import Template
@@ -21,6 +22,10 @@ from whodunnet.paths import AGENT_LABEL, Paths, ensure_dirs
 from whodunnet.probes.runner import Runner, run_command
 
 SYSTEM_PYTHON = "/usr/bin/python3"
+# bootout returns before the old agent has unloaded; bootstrap fails ("5: Input/output error")
+# until it has, so retry a few times.
+BOOTSTRAP_ATTEMPTS = 5
+BOOTSTRAP_RETRY_S = 2.0
 TEMPLATE = Path(whodunnet.__file__).resolve().parent / "launchd" / f"{AGENT_LABEL}.plist.template"
 PACKAGE_DIR = Path(whodunnet.__file__).resolve().parent
 
@@ -109,6 +114,7 @@ def install(
     ask: Callable[[str], str] = input,
     out: Callable[[str], None] = print,
     check_prerequisites: bool = True,
+    sleep: Callable[[float], None] = time.sleep,
 ) -> int:
     if check_prerequisites:
         problems = prerequisites(runner)
@@ -135,7 +141,12 @@ def install(
     runner(["launchctl", "bootout", service_target()], 30)  # not loaded yet is fine
     paths.launch_agent.parent.mkdir(parents=True, exist_ok=True)
     paths.launch_agent.write_text(render_plist(paths, data_dir))
-    result = runner(["launchctl", "bootstrap", domain_target(), str(paths.launch_agent)], 30)
+    for attempt in range(BOOTSTRAP_ATTEMPTS):
+        if attempt:
+            sleep(BOOTSTRAP_RETRY_S)
+        result = runner(["launchctl", "bootstrap", domain_target(), str(paths.launch_agent)], 30)
+        if result.ok:
+            break
     if not result.ok:
         out(f"✗ launchctl bootstrap failed: {result.output.strip()}")
         out(f"  Logs: {paths.logs}")

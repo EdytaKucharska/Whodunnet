@@ -146,16 +146,43 @@ def test_install_non_interactive_defaults_to_lookups(p):
 
 
 def test_install_reports_bootstrap_failure(p):
-    out = []
+    out, runner = [], Recorder(fail={"bootstrap"})
     rc = agent.install(
         p,
         None,
-        runner=Recorder(fail={"bootstrap"}),
+        runner=runner,
         ask=lambda q: "",
         out=out.append,
         check_prerequisites=False,
+        sleep=lambda s: None,
     )
     assert rc == 1 and any("bootstrap failed" in line for line in out)
+    assert sum(c[1] == "bootstrap" for c in runner.calls) == agent.BOOTSTRAP_ATTEMPTS
+
+
+def test_install_retries_bootstrap_while_the_old_agent_unloads(p):
+    """bootout returns before the old agent is gone; bootstrap then fails with error 5 for a bit."""
+
+    class Unloading(Recorder):
+        def __call__(self, argv, timeout):
+            if argv[1] == "bootstrap" and sum(c[1] == "bootstrap" for c in self.calls) < 2:
+                self.calls.append(list(argv))
+                return CommandResult(5, "", "Bootstrap failed: 5: Input/output error")
+            return super().__call__(argv, timeout)
+
+    runner, sleeps, out = Unloading(), [], []
+    rc = agent.install(
+        p,
+        None,
+        runner=runner,
+        ask=lambda q: "",
+        out=out.append,
+        check_prerequisites=False,
+        sleep=sleeps.append,
+    )
+    assert rc == 0 and not any("failed" in line for line in out)
+    assert sum(c[1] == "bootstrap" for c in runner.calls) == 3
+    assert sleeps == [agent.BOOTSTRAP_RETRY_S] * 2
 
 
 def test_install_prerequisites(p, monkeypatch):

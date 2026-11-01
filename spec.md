@@ -535,7 +535,7 @@ All commands: `python3 -m whodunnet <command>`; all accept `--data-dir` (or `WHO
 
 | Command | Does |
 |---|---|
-| `install` | Prerequisite checks; explain what is measured and the outbound traffic; ask whether to allow YouTube/Netflix server lookups (sets `discovery_lookups`, default yes); copy the package to the app dir; create the log dir; write config (token) and `meta.install_salt`; `bootout` any already-loaded agent; render the plist (`/usr/bin/python3 -m whodunnet run [--data-dir …]`, `RunAtLoad`, `KeepAlive`, `ThrottleInterval 30`, `ProcessType Standard`, `WorkingDirectory` + `PYTHONPATH` = app dir, stdout/stderr → `launchd.out.log`/`launchd.err.log` in the log dir, i.e. `DIR/logs/` under `--data-dir`); `launchctl bootstrap gui/$(id -u) <plist>`; tell the user to approve the Local Network prompt and keep the "Background Items Added" item enabled. |
+| `install` | Prerequisite checks; explain what is measured and the outbound traffic; ask whether to allow YouTube/Netflix server lookups (sets `discovery_lookups`, default yes); copy the package to the app dir; create the log dir; write config (token) and `meta.install_salt`; `bootout` any already-loaded agent; render the plist (`/usr/bin/python3 -m whodunnet run [--data-dir …]`, `RunAtLoad`, `KeepAlive`, `ThrottleInterval 30`, `ProcessType Standard`, `WorkingDirectory` + `PYTHONPATH` = app dir, stdout/stderr → `launchd.out.log`/`launchd.err.log` in the log dir, i.e. `DIR/logs/` under `--data-dir`); `launchctl bootstrap gui/$(id -u) <plist>`, retried up to 5 times 2 s apart (the booted-out agent may still be unloading); tell the user to approve the Local Network prompt and keep the "Background Items Added" item enabled. |
 | `uninstall [--purge]` | `launchctl bootout gui/$(id -u)/app.whodunnet.collector`; remove plist and app dir; `--purge` also deletes db, config, reports, logs. |
 | `run [--foreground] [--nq-now]` | The collector (what launchd runs). `--foreground` also logs to the terminal. `--nq-now` runs one nq immediately. |
 | `status` | Running? (last heartbeat < 30 s ago), last sample age per probe, coverage, verdict summary. |
@@ -629,6 +629,7 @@ Native macOS app, native iPhone app (the v0 phone lag marker is a web page), plu
 | 2026-10-27 | nq data-use estimate ~4.6 GB/day. | Measured 0.57 GB per run on the origin connection. |
 | 2026-11-01 | Evening coverage % counts only time since the first heartbeat. | Real install: 12 pre-install evenings in the 14-day window showed 9% coverage (63% since install) and kept "keep the Mac awake" up for ~2 weeks. |
 | 2026-11-01 | Lag presses within 2 min are one lag moment; lag buttons disable while recording. | Real use: one incident on the phone stored 4 events, one tap short of a `device_or_app` finding. |
+| 2026-11-01 | `install` retries `launchctl bootstrap` up to 5 times, 2 s apart. | Real reinstall: bootstrap right after bootout failed with "5: Input/output error" and left the collector stopped until reloaded by hand. |
 
 ## 16. Glossary
 
